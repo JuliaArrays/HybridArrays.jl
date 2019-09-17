@@ -209,38 +209,58 @@ end
     exprs = Vector{Expr}(undef, length(newsize))
 
     indices = CartesianIndices(newsize)
-    exprs = similar(indices, Expr)
-    for current_ind ∈ indices
-        cinds = _get_indices(current_ind.I, 1, inds...)
-        exprs[current_ind.I...] = :(setindex!(sa.data, v[$(cinds...)], $(cinds...)))
-    end
     Tnewsize = Tuple{newsize...}
-    return quote
-        Base.@_propagate_inbounds_meta
-        if size(v) != $newsize
-            throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
-        end
-        @inbounds $(Expr(:block, exprs...))
-    end
-end
 
-@generated function _setindex!_all_static(sa::HybridArray{S,T}, v::StaticArray, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where {S,T}
-    newsize = new_out_size_nongen(S, inds...)
-    exprs = Vector{Expr}(undef, length(newsize))
-
-    indices = CartesianIndices(newsize)
-    exprs = similar(indices, Expr)
-    for current_ind ∈ indices
-        cinds = _get_indices(current_ind.I, 1, inds...)
-        exprs[current_ind.I...] = :(setindex!(sa.data, v[$(current_ind.I...)], $(cinds...)))
-    end
-    Tnewsize = Tuple{newsize...}
-    L = StaticArrays.tuple_prod(newsize)
-    return quote
-        Base.@_propagate_inbounds_meta
-        if Length(typeof(v)) != $L
-            throw(DimensionMismatch("tried to assign $(length(v))-element array to length-$($L) destination"))
+    if v <: StaticArray
+        newlen = StaticArrays.tuple_prod(newsize)
+        if Length(v) != newlen
+            return quote
+                throw(DimensionMismatch("tried to assign $(length(v))-element array to $($newlen) destination"))
+            end
         end
-        @inbounds $(Expr(:block, exprs...))
+    end
+
+    lininds = _get_linear_inds(S, inds...)
+    if lininds === nothing
+        exprs = similar(indices, Expr)
+        for current_ind ∈ indices
+            cinds = _get_indices(current_ind.I, 1, inds...)
+            exprs[current_ind.I...] = :(setindex!(sa.data, v[$(cinds...)], $(cinds...)))
+        end
+
+        if v <: StaticArray
+            return quote
+                @_propagate_inbounds_meta
+                @inbounds $(Expr(:block, exprs...))
+            end
+        else
+            return quote
+                Base.@_propagate_inbounds_meta
+                if size(v) != $newsize
+                    throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
+                end
+                @inbounds $(Expr(:block, exprs...))
+            end
+        end
+
+    else
+        exprs = [:(setindex!(sa.data, v[$iid], $id)) for (iid, id) ∈ enumerate(lininds[2])]
+
+        if v <: StaticArray
+            return quote
+                Base.@_propagate_inbounds_meta
+                $(lininds[1])
+                @inbounds $(Expr(:block, exprs...))
+            end
+        else
+            return quote
+                Base.@_propagate_inbounds_meta
+                if size(v) != $newsize
+                    throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
+                end
+                $(lininds[1])
+                @inbounds $(Expr(:block, exprs...))
+            end
+        end
     end
 end

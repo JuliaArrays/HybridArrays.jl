@@ -129,7 +129,9 @@ end
     D[1,2,:,1] = [10, 11, 12, 13]
     @test D[1,2,:,1] == @SVector [10, 11, 12, 13]
 
-
+    @test_throws DimensionMismatch (D[:,2,3,4] = @SVector [10, 11, 11])
+    @test_throws DimensionMismatch (D[:,2,3,4] = [10, 11, 11])
+    @test_throws DimensionMismatch (B[1,2,:] = [10, 11])
 end
 
 include("abstractarray.jl")
