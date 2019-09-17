@@ -1,3 +1,7 @@
+| Status | Coverage |
+| :----: | :----: |
+| [![Build Status](https://travis-ci.com/mateuszbaran/HybridArrays.jl.svg?branch=master)](https://travis-ci.com/mateuszbaran/HybridArrays.jl) [![Build status](https://ci.appveyor.com/api/projects/status/72nb8pp4pp6e2q7x?svg=true)](https://ci.appveyor.com/project/mateuszbaran/hybridarrays-jl) | [ ![codecov.io](http://codecov.io/github/mateuszbaran/HybridArrays.jl/coverage.svg?branch=master)](http://codecov.io/github/mateuszbaran/HybridArrays.jl?branch=master) |
+
 # HybridArrays.jl
 
 Arrays with both statically and dynamically sized axes in Julia. This is a convenient replacement for the commonly used `Arrays`s of `SArray`s which are fast but not easy to mutate. `HybridArray` makes this easier: any `AbstractArray` can be wrapped in a structure that specifies which axes are statically sized. Based on this information code for `getindex`, `setindex!` and broadcasting is (or should soon be, not all cases have been optimized yet) as efficient as for `Arrays`s of `SArray`s while mutation of single elements is possible, as well as other operations on the wrapped array.

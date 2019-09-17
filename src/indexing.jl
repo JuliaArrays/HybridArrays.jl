@@ -30,20 +30,93 @@ function _get_indices(i::Tuple, j::Int, i1::Type{Colon}, inds...)
     return (i[1], _get_indices(i[2:end], j+1, inds...)...)
 end
 
+_totally_linear(inds...) = false
+_totally_linear(inds::Type{Int}...) = true
+_totally_linear(inds::Type{Colon}...) = true
+_totally_linear(i1::Type{Colon}, inds...) = _totally_linear(inds...)
+
+"""
+    _get_linear_inds(S, inds...)
+
+Returns linear indices for given size and access indices.
+Order is selected to make setindex! with array input be linearly indexed by
+position of index in returned vector.
+"""
+function _get_linear_inds(S, inds...)
+    newsize = new_out_size_nongen(S, inds...)
+    indices = CartesianIndices(newsize)
+    out_inds = Any[]
+    sizeprods = Union{Int, Expr}[1]
+    needs_dynsize = false
+    for (i, s) in enumerate(S.parameters[1:(end-1)])
+        if isa(s, Int) && isa(sizeprods[end], Int)
+            push!(sizeprods, s*sizeprods[end])
+        elseif isa(s, Int)
+            push!(sizeprods, :($s*$(sizeprods[end])))
+        elseif isa(s, Dynamic)
+            needs_dynsize = true
+            push!(sizeprods, :(dynsize[$i]*$(sizeprods[end])))
+        end
+    end
+
+    needs_sizeprod = false
+    if _totally_linear(inds...)
+        i1 = 0
+        for (iik, ik) ∈ enumerate(inds)
+            if isa(ik, Type{Int})
+                needs_sizeprod = true
+                i1 = :($i1 + (inds[$iik]-1)*sizeprods[$iik])
+            end
+        end
+        out_inds = tuple((:(i1 + $k) for k ∈ 1:StaticArrays.tuple_prod(newsize))...)
+
+        preamble = if needs_sizeprod && needs_dynsize
+            quote
+                dynsize = size(sa)
+                sizeprods = tuple($(sizeprods...))
+                i1 = $i1
+            end
+        elseif needs_sizeprod
+            quote
+                sizeprods = tuple($(sizeprods...))
+                i1 = $i1
+            end
+        else
+            quote
+                i1 = $i1
+            end
+        end
+        return preamble, out_inds
+    else
+        return nothing
+    end
+end
+
 @generated function _getindex_all_static(sa::HybridArray{S,T}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where {S,T}
     newsize = new_out_size_nongen(S, inds...)
     exprs = Vector{Expr}(undef, length(newsize))
 
     indices = CartesianIndices(newsize)
     exprs = similar(indices, Expr)
-    for current_ind ∈ indices
-        cinds = _get_indices(current_ind.I, 1, inds...)
-        exprs[current_ind.I...] = :(getindex(sa.data, $(cinds...)))
-    end
     Tnewsize = Tuple{newsize...}
-    return quote
-        Base.@_propagate_inbounds_meta
-        SArray{$Tnewsize,$T}(tuple($(exprs...)))
+
+    lininds = _get_linear_inds(S, inds...)
+    if lininds === nothing
+        for current_ind ∈ indices
+            cinds = _get_indices(current_ind.I, 1, inds...)
+            exprs[current_ind.I...] = :(getindex(sa.data, $(cinds...)))
+        end
+        return quote
+            Base.@_propagate_inbounds_meta
+            SArray{$Tnewsize,$T}(tuple($(exprs...)))
+        end
+    else
+        exprs = [:(getindex(sa.data, $id)) for id ∈ lininds[2]]
+        return quote
+            Base.@_propagate_inbounds_meta
+            $(lininds[1])
+            SArray{$Tnewsize,$T}(tuple($(exprs...)))
+        end
     end
 end
 
@@ -115,5 +188,79 @@ end
         Base.@_inline_meta
         Base.@_propagate_inbounds_meta
         a.data[$ind_expr] = value
+    end
+end
+
+Base.@propagate_inbounds function setindex!(sa::HybridArray{S}, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where S
+    _setindex!(all_dynamic_fixed_val(S, inds...), sa, value, inds...)
+end
+
+@inline function _setindex!(::Val{:dynamic_fixed_false}, sa::HybridArray{S}, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where S
+    newsize = new_out_size(S, inds...)
+    return HybridArray{newsize}(setindex!(sa.data, value, inds...))
+end
+
+Base.@propagate_inbounds function _setindex!(::Val{:dynamic_fixed_true}, sa::HybridArray, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...)
+    return _setindex!_all_static(sa, value, inds...)
+end
+
+@generated function _setindex!_all_static(sa::HybridArray{S,T}, v::AbstractArray, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where {S,T}
+    newsize = new_out_size_nongen(S, inds...)
+    exprs = Vector{Expr}(undef, length(newsize))
+
+    indices = CartesianIndices(newsize)
+    Tnewsize = Tuple{newsize...}
+
+    if v <: StaticArray
+        newlen = StaticArrays.tuple_prod(newsize)
+        if Length(v) != newlen
+            return quote
+                throw(DimensionMismatch("tried to assign $(length(v))-element array to $($newlen) destination"))
+            end
+        end
+    end
+
+    lininds = _get_linear_inds(S, inds...)
+    if lininds === nothing
+        exprs = similar(indices, Expr)
+        for current_ind ∈ indices
+            cinds = _get_indices(current_ind.I, 1, inds...)
+            exprs[current_ind.I...] = :(setindex!(sa.data, v[$(cinds...)], $(cinds...)))
+        end
+
+        if v <: StaticArray
+            return quote
+                @_propagate_inbounds_meta
+                @inbounds $(Expr(:block, exprs...))
+            end
+        else
+            return quote
+                Base.@_propagate_inbounds_meta
+                if size(v) != $newsize
+                    throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
+                end
+                @inbounds $(Expr(:block, exprs...))
+            end
+        end
+
+    else
+        exprs = [:(setindex!(sa.data, v[$iid], $id)) for (iid, id) ∈ enumerate(lininds[2])]
+
+        if v <: StaticArray
+            return quote
+                Base.@_propagate_inbounds_meta
+                $(lininds[1])
+                @inbounds $(Expr(:block, exprs...))
+            end
+        else
+            return quote
+                Base.@_propagate_inbounds_meta
+                if size(v) != $newsize
+                    throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
+                end
+                $(lininds[1])
+                @inbounds $(Expr(:block, exprs...))
+            end
+        end
     end
 end

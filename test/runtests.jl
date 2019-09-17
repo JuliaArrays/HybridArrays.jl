@@ -98,7 +98,10 @@ end
 @testset "dynamically sized axes" begin
     A = rand(Int, 2, 3, 4)
     B = HybridArray{Tuple{2,3,StaticArrays.Dynamic()}, Int, 3}(A)
+    C = rand(Int, 2, 3, 4, 5)
+    D = HybridArray{Tuple{2,3,StaticArrays.Dynamic(),StaticArrays.Dynamic()}, Int, 4}(C)
     @test size(B) == size(A)
+    @test size(D) == size(C)
     @test axes(B) == (SOneTo(2), SOneTo(3), axes(A, 3))
     @test axes(B, 1) == SOneTo(2)
     @test axes(B, 2) == SOneTo(3)
@@ -118,6 +121,23 @@ end
     @test B[:,:,1] == @SMatrix [1 2 3; 4 5 6]
     B[1,2,:] = [10, 11, 12, 13]
     @test B[1,2,:] == @SVector [10, 11, 12, 13]
+    B[:,2,:] = @SMatrix [1 2 3 4; 5 6 7 8]
+    @test B[:,2,:] == @SMatrix [1 2 3 4; 5 6 7 8]
+    B[:,2,:] = [11 12 13 14; 15 16 17 18]
+    @test B[:,2,:] == [11 12 13 14; 15 16 17 18]
+
+    D[:,2,3,4] = @SVector [10, 11]
+    @test D[:,2,3,4] == @SVector [10, 11]
+    D[:,:,1,2] = @SMatrix [1 2 3; 4 5 6]
+    @test D[:,:,1,2] == @SMatrix [1 2 3; 4 5 6]
+    D[1,2,:,1] = [10, 11, 12, 13]
+    @test D[1,2,:,1] == @SVector [10, 11, 12, 13]
+
+    @test_throws DimensionMismatch (D[:,2,3,4] = @SVector [10, 11, 11])
+    @test_throws DimensionMismatch (D[:,2,3,4] = [10, 11, 11])
+    @test_throws DimensionMismatch (B[1,2,:] = [10, 11])
 end
 
+include("abstractarray.jl")
 include("broadcast.jl")
+include("linalg.jl")
