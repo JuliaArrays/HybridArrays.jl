@@ -14,11 +14,15 @@ const HybridVecOrMatLike{T} = Union{HybridVector{<:Any, T}, HybridMatrixLike{T}}
 # Between arrays
 @inline +(a::HybridArray, b::HybridArray) = a .+ b
 @inline +(a::AbstractArray, b::HybridArray) = a .+ b
+@inline +(a::StaticArray, b::HybridArray) = a .+ b
 @inline +(a::HybridArray, b::AbstractArray) = a .+ b
+@inline +(a::HybridArray, b::StaticArray) = a .+ b
 
 @inline -(a::HybridArray, b::HybridArray) = a .- b
 @inline -(a::AbstractArray, b::HybridArray) = a .- b
+@inline -(a::StaticArray, b::HybridArray) = a .- b
 @inline -(a::HybridArray, b::AbstractArray) = a .- b
+@inline -(a::HybridArray, b::StaticArray) = a .- b
 
 # Scalar-array
 @inline *(a::Number, b::HybridArray) = a .* b
