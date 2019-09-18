@@ -35,10 +35,15 @@ using LinearAlgebra
     return false
 end
 
-@generated function all_dynamic_fixed_val(::Type{Size}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where Size<:Tuple
+@generated function all_dynamic_fixed_val(::Type{Size}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon, SOneTo, Base.OneTo, UnitRange, Base.Slice}...) where Size<:Tuple
     all_fixed = true
     for (i, param) in enumerate(Size.parameters)
-        if isa(param, Dynamic) && inds[i] == Colon
+        nonstatizing = (inds[i] == Colon ||
+            inds[i] <: UnitRange ||
+            inds[i] <: Base.Slice{<:UnitRange} ||
+            inds[i] == Base.OneTo ||
+            inds[i] <: Base.Slice{<:Base.OneTo})
+        if isa(param, Dynamic) && nonstatizing
             all_fixed = false
             break
         end
@@ -131,5 +136,6 @@ include("convert.jl")
 include("indexing.jl")
 include("linalg.jl")
 include("utils.jl")
+include("ssubarray.jl")
 
 end # module
