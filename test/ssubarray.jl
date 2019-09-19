@@ -304,7 +304,7 @@ _ndims(x) = 1
     oindex = (:, 6, 3:7, reshape(@SVector [12]), (@SVector [8,4,6,12,5,7]), [3:7 1:5 2:6 4:8 5:9])
 
     if testfull
-        let B = SArray{Tuple{13,13,13}}(copy(reshape(1:13^3, 13, 13, 13)))
+        let B = MArray{Tuple{13,13,13}}(copy(reshape(1:13^3, 13, 13, 13)))
             for o3 in oindex, o2 in oindex, o1 in oindex
                 viewB = view(B, o1, o2, o3)
                 runviews(viewB, index5, index25, index125)
@@ -313,7 +313,7 @@ _ndims(x) = 1
     end
 
     if !testfull
-        let B = SArray{Tuple{9,7,7}}(copy(reshape(1:9*7*7, 9, 7, 7)))
+        let B = MArray{Tuple{9,7,7}}(copy(reshape(1:9*7*7, 9, 7, 7)))
             for oind in ((:,:,:),
                          (:,:,4),
                          (:,4,:),
@@ -338,7 +338,7 @@ _ndims(x) = 1
     end
 
     # Julia issue #11289
-    x11289 = SMatrix{5,5}(randn(5,5))
+    x11289 = MMatrix{5,5}(randn(5,5))
     @test isempty(view(x11289, Int[], :))
     @test isempty(view(x11289, [2,5], Int[]))
     @test isempty(view(x11289, Int[], 2))
@@ -396,10 +396,10 @@ _ndims(x) = 1
     @test axes(sA) === (Base.OneTo(2), Base.OneTo(2), Base.OneTo(2))
 
     # logical indexing Julia #4763
-    A = view(SVector{10}([1:10;]), 5:8)
+    A = view(MVector{10}([1:10;]), 5:8)
     @test A[A.<7] == view(A, A.<7) == [5, 6]
     @test Base.unsafe_getindex(A, A.<7) == [5, 6]
-    B = SMatrix{4,4}(reshape(1:16, 4, 4))
+    B = MMatrix{4,4}(reshape(1:16, 4, 4))
     sB = view(B, 2:3, 2:3)
     @test sB[sB.>8] == view(sB, sB.>8) == [10, 11]
     @test Base.unsafe_getindex(sB, sB.>8) == [10, 11]
@@ -448,7 +448,7 @@ _ndims(x) = 1
     @test sA[msk] == fill(1, count(msk))
 
     # bounds checking upon construction; see Julia #4044, #10296
-    A = SMatrix{5,4}(reshape(1:20, 5, 4))
+    A = MMatrix{5,4}(reshape(1:20, 5, 4))
     sA = view(A, 1:2, 1:3)
     @test_throws BoundsError view(sA, 1:3, 1:3)
     @test_throws BoundsError view(sA, 1:2, 1:4)
@@ -457,26 +457,26 @@ _ndims(x) = 1
     view(A, 17:20)
 
     # tests @view (and replace_ref_end!)
-    X = SArray{Tuple{2,3,4}}(reshape(1:24,2,3,4))
+    X = MArray{Tuple{2,3,4}}(reshape(1:24,2,3,4))
 
     @test_broken isa(@view(X[1:3]), HybridArrays.SSubArray)
     @test isa(@view(X[SOneTo(2),1,1]), HybridArrays.SSubArray)
 
     # issue #18581: slices with OneTo axes can be linear
     let
-        A18581 = SMatrix{5,5}(rand(5, 5))
+        A18581 = MMatrix{5,5}(rand(5, 5))
         B18581 = view(A18581, :, axes(A18581,2))
         @test IndexStyle(B18581) === IndexLinear()
     end
 
     # Julia PR #25321
     # checks that issue in type inference is resolved
-    A = SArray{Tuple{5,5,5,5}}(rand(5,5,5,5))
+    A = MArray{Tuple{5,5,5,5}}(rand(5,5,5,5))
     V = view(A, 1:1 ,:, 1:3, :)
     @test @inferred(strides(V)) == (1, 5, 25, 125)
 
     # Julia Issue #26263 — ensure that unaliascopy properly trims the array
-    A = SArray{Tuple{5,5,5,5}}(rand(5,5,5,5))
+    A = MArray{Tuple{5,5,5,5}}(rand(5,5,5,5))
     V = view(A, 2:5, :, 2:5, 1:2:5)
     @test @inferred(Base.unaliascopy(V)) == V == A[2:5, :, 2:5, 1:2:5]
     @test @inferred(sum(Base.unaliascopy(V))) ≈ sum(V) ≈ sum(A[2:5, :, 2:5, 1:2:5])
