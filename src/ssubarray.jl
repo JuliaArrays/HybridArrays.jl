@@ -24,16 +24,18 @@ function SSubArray(parent::Union{StaticArray{S}, HybridArray{S}}, indices::Tuple
 end
 function SSubArray(::IndexCartesian, ::Val{:dynamic_fixed_true}, parent::Union{StaticArray{S}, HybridArray{S}}, indices::I, ::NTuple{N,Any}) where {S,I,N}
     Base.@_inline_meta
-    SSubArray{S, eltype(typeof(parent)), N, typeof(parent), I, false}(parent, indices, 0, 0)
+    newsize = new_out_size(S, indices...)
+    SSubArray{newsize, eltype(typeof(parent)), N, typeof(parent), I, false}(parent, indices, 0, 0)
 end
 function SSubArray(::IndexLinear, ::Val{:dynamic_fixed_true}, parent::Union{StaticArray{S}, HybridArray{S}}, indices::I, ::NTuple{N,Any}) where {S,I,N}
     Base.@_inline_meta
     # Compute the stride and offset
     stride1 = Base.compute_stride1(parent, indices)
-    SSubArray{S, eltype(typeof(parent)), N, typeof(parent), I, true}(parent, indices, Base.compute_offset1(parent, stride1, indices), stride1)
+    newsize = new_out_size(S, indices...)
+    SSubArray{newsize, eltype(typeof(parent)), N, typeof(parent), I, true}(parent, indices, Base.compute_offset1(parent, stride1, indices), stride1)
 end
-function SSubArray(indexing::Any, ::Val{:dynamic_fixed_false}, parent::Union{StaticArray{S}, HybridArray{S}}, indices::I, ::NTuple{N,Any}) where {S,I,N}
-    return SubArray(indexing, parent, indices)
+function SSubArray(indexing::Any, ::Val{:dynamic_fixed_false}, parent::Union{StaticArray{S}, HybridArray{S}}, indices::I, idsum::NTuple{N,Any}) where {S,I,N}
+    return SubArray(indexing, parent, indices, idsum)
 end
 
 # This makes it possible to elide view allocation in cases where the
@@ -83,7 +85,9 @@ Base._maybe_reindex(V::SSubArray, I, A::Tuple{Any, Vararg{Any}}) = (Base.@_inlin
 function Base._maybe_reindex(V::SSubArray, I, ::Tuple{})
     Base.@_inline_meta
     @inbounds idxs = to_indices(V.parent, Base.reindex(V.indices, I))
-    SSubArray(V.parent, idxs)
+    # Might be changed to SSubArray in the future when reshaped statically
+    # sized views are a thing. This at least makes things work.
+    SubArray(V.parent, idxs)
 end
 
 # In general, we simply re-index the parent indices by the provided ones
@@ -92,6 +96,15 @@ function getindex(V::SSubArray{S,T,N}, I::Vararg{Int,N}) where {S,T,N}
     Base.@_inline_meta
     @boundscheck checkbounds(V, I...)
     @inbounds r = V.parent[Base.reindex(V.indices, I)...]
+    r
+end
+
+# overrides default erroring getindex for `StaticArray`
+function getindex(V::SSubArray{S,T,N}, i::Int) where {S,T,N}
+    Base.@_inline_meta
+    @boundscheck checkbounds(V, i)
+    subind = Base._to_subscript_indices(V, i)
+    @inbounds r = V.parent[Base.reindex(V.indices, subind)...]
     r
 end
 
@@ -218,8 +231,3 @@ function Base.parentdims(s::SSubArray)
     end
     dimindex
 end
-
-
-# move to StaticArrays maybe?
-Base.strides(a::Union{SArray,MArray}) = Base.size_to_strides(1, size(a)...)
-Base.strides(a::SizedArray) = strides(a.data)

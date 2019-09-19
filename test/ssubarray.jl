@@ -313,22 +313,22 @@ _ndims(x) = 1
     end
 
     if !testfull
-        let B = SArray{Tuple{13,13,13}}(copy(reshape(1:13^3, 13, 13, 13)))
+        let B = SArray{Tuple{9,7,7}}(copy(reshape(1:9*7*7, 9, 7, 7)))
             for oind in ((:,:,:),
-                         (:,:,6),
-                         (:,6,:),
-                         (6,:,:),
-                         (:,3:7,:),
-                         (3:7,:,:),
-                         (3:7,6,:),
-                         (3:7,6,0x6),
-                         (6,UInt(3):UInt(7),3:7),
-                         (13:-2:1,:,:),
-                         ([8,4,6,12,5,7],:,3:7),
-                         (6,CartesianIndex.(6,[8,4,6,12,5,7])),
-                         (CartesianIndex(13,6),[8,4,6,12,5,7]),
-                         (1,:,view(1:13,[9,12,4,13,1])),
-                         (view(1:13,[9,12,4,13,1]),2:6,4),
+                         (:,:,4),
+                         (:,4,:),
+                         (4,:,:),
+                         (:,2:6,:),
+                         (2:6,:,:),
+                         (2:6,5,:),
+                         (2:6,5,0x5),
+                         (6,UInt(2):UInt(6),2:6),
+                         (9:-2:1,:,:),
+                         ([1,4,6,5,7],:,2:6),
+                         (6,CartesianIndex.(5,[2,4,6,5,7])),
+                         (CartesianIndex(7,5),[2,4,6,5,7]),
+                         (1,:,view(1:7,[7,5,4,2,1])),
+                         (view(1:7,[6,2,4,3,1]),2:6,4),
                          ([1:5 2:6 3:7 4:8 5:9], :, 3))
                 runsubarraytests(B, oind...)
                 viewB = view(B, oind...)
@@ -411,7 +411,7 @@ _ndims(x) = 1
     @test parentindices(sA) == (2, Base.Slice(1:5), 1:8)
     @test Base.parentdims(sA) == [2:3;]
     @test size(sA) == (5, 8)
-    @test axes(sA) === (Base.OneTo(5), Base.OneTo(8))
+    @test axes(sA) === (SOneTo(5), Base.OneTo(8))
     @test @inferred(strides(sA)) == (3,15)
     @test sA[2, 1:8][:] == [5:15:120;]
     @test sA[:,1] == [2:3:14;]
@@ -459,8 +459,8 @@ _ndims(x) = 1
     # tests @view (and replace_ref_end!)
     X = SArray{Tuple{2,3,4}}(reshape(1:24,2,3,4))
 
-    @test_broken isa(@view(X[1:3]), SSubArray)
-    @test isa(@view(X[1:3,1,1]), SSubArray)
+    @test_broken isa(@view(X[1:3]), HybridArrays.SSubArray)
+    @test isa(@view(X[SOneTo(2),1,1]), HybridArrays.SSubArray)
 
     # issue #18581: slices with OneTo axes can be linear
     let

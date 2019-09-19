@@ -10,7 +10,7 @@ In preparation are statically sized views for fast and convenient mutation of `H
 
 Example:
 ```julia
-julia> using HybridArrays
+julia> using HybridArrays, StaticArrays
 
 julia> A = HybridArray{Tuple{2,2,StaticArrays.Dynamic()}}(randn(2,2,100));
 
