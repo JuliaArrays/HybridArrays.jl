@@ -479,7 +479,7 @@ _ndims(x) = 1
     @test_broken isa(@view(X[1:3]), HybridArrays.SSubArray)
     @test isa(@view(X[SOneTo(2),1,1]), HybridArrays.SSubArray)
 
-    # issue #18581: slices with OneTo axes can be linear
+    # Julia issue #18581: slices with OneTo axes can be linear
     let
         A18581 = MMatrix{5,5}(rand(5, 5))
         B18581 = view(A18581, :, axes(A18581,2))
