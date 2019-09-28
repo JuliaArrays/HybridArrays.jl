@@ -220,11 +220,11 @@ function Base.pointer(V::SSubArray{T,N,<:Array,<:Tuple{Vararg{Base.RangeIndex}}}
 end
 
 # copied from Base because in Julia < 1.2 it works in an incompatible way
-_indices_sub(::Real, I...) = (@_inline_meta; _indices_sub(I...))
+_indices_sub(::Real, I...) = (Base.@_inline_meta; _indices_sub(I...))
 _indices_sub() = ()
 function _indices_sub(i1::AbstractArray, I...)
-    @_inline_meta
-    (unsafe_indices(i1)..., _indices_sub(I...)...)
+    Base.@_inline_meta
+    (Base.unsafe_indices(i1)..., _indices_sub(I...)...)
 end
 
 axes(S::SSubArray) = (Base.@_inline_meta; _indices_sub(S.indices...))
