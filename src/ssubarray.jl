@@ -92,9 +92,7 @@ Base._maybe_reindex(V::SSubArray, I, A::Tuple{Any, Vararg{Any}}) = (Base.@_inlin
 function Base._maybe_reindex(V::SSubArray, I, ::Tuple{})
     Base.@_inline_meta
     @inbounds idxs = to_indices(V.parent, reindex(V.indices, I))
-    # Might be changed to SSubArray in the future when reshaped statically
-    # sized views are a thing. This at least makes things work.
-    SubArray(V.parent, idxs)
+    return Base.unsafe_view(V.parent, idxs...)
 end
 
 if VERSION < v"1.2"
@@ -141,12 +139,12 @@ function getindex(V::SSubArray{S,T,N}, I::Vararg{Int,N}) where {S,T,N}
 end
 
 # overrides default erroring getindex from `StaticArrays`
-function getindex(V::SSubArray{S,T,N}, i::Int) where {S,T,N}
+function getindex(V::SSubArray, i::Int)
     Base.@_inline_meta
     @boundscheck checkbounds(V, i)
     subind = Base._to_subscript_indices(V, i)
     @inbounds r = V.parent[reindex(V.indices, subind)...]
-    r
+    return r
 end
 
 # But SSubArrays with fast linear indexing pre-compute a stride and offset
@@ -157,6 +155,15 @@ function getindex(V::FastSSubArray, i::Int)
     @inbounds r = V.parent[V.offset1 + V.stride1*i]
     r
 end
+
+# disambiguation
+function getindex(V::FastSSubArray{S,T,1}, i::Int) where {S,T}
+    Base.@_inline_meta
+    @boundscheck checkbounds(V, i)
+    @inbounds r = V.parent[V.offset1 + V.stride1*i]
+    r
+end
+
 # We can avoid a multiplication if the first parent index is a Colon or AbstractUnitRange,
 # or if all the indices are scalars, i.e. the view is for a single value only
 FastContiguousSSubArray{S,T,N,P,I<:Union{Tuple{Union{Base.Slice, AbstractUnitRange}, Vararg{Any}},
