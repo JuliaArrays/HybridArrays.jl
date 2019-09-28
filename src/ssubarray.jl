@@ -90,35 +90,38 @@ function Base._maybe_reindex(V::SSubArray, I, ::Tuple{})
     SubArray(V.parent, idxs)
 end
 
-# reindex copied from Base because in pre-1.2 it has an incompatible implementation
+if VERSION < v"1.2"
+    # reindex copied from Base because in pre-1.2 it has an incompatible implementation
+    reindex(::Tuple{}, ::Tuple{}) = ()
 
-reindex(::Tuple{}, ::Tuple{}) = ()
+    # Skip dropped scalars, so simply peel them off the parent indices and continue
+    reindex(idxs::Tuple{Base.ScalarIndex, Vararg{Any}}, subidxs::Tuple{Vararg{Any}}) =
+        (Base.@_propagate_inbounds_meta; (idxs[1], reindex(Base.tail(idxs), subidxs)...))
 
-# Skip dropped scalars, so simply peel them off the parent indices and continue
-reindex(idxs::Tuple{Base.ScalarIndex, Vararg{Any}}, subidxs::Tuple{Vararg{Any}}) =
-    (Base.@_propagate_inbounds_meta; (idxs[1], reindex(Base.tail(idxs), subidxs)...))
+    # Slices simply pass their subindices straight through
+    reindex(idxs::Tuple{Base.Slice, Vararg{Any}}, subidxs::Tuple{Any, Vararg{Any}}) =
+        (Base.@_propagate_inbounds_meta; (subidxs[1], reindex(Base.tail(idxs), Base.tail(subidxs))...))
 
-# Slices simply pass their subindices straight through
-reindex(idxs::Tuple{Base.Slice, Vararg{Any}}, subidxs::Tuple{Any, Vararg{Any}}) =
-    (Base.@_propagate_inbounds_meta; (subidxs[1], reindex(Base.tail(idxs), Base.tail(subidxs))...))
+    # Re-index into parent vectors with one subindex
+    reindex(idxs::Tuple{AbstractVector, Vararg{Any}}, subidxs::Tuple{Any, Vararg{Any}}) =
+        (Base.@_propagate_inbounds_meta; (idxs[1][subidxs[1]], reindex(Base.tail(idxs), Base.tail(subidxs))...))
 
-# Re-index into parent vectors with one subindex
-reindex(idxs::Tuple{AbstractVector, Vararg{Any}}, subidxs::Tuple{Any, Vararg{Any}}) =
-    (Base.@_propagate_inbounds_meta; (idxs[1][subidxs[1]], reindex(Base.tail(idxs), Base.tail(subidxs))...))
+    # Parent matrices are re-indexed with two sub-indices
+    reindex(idxs::Tuple{AbstractMatrix, Vararg{Any}}, subidxs::Tuple{Any, Any, Vararg{Any}}) =
+        (Base.@_propagate_inbounds_meta; (idxs[1][subidxs[1], subidxs[2]], reindex(Base.tail(idxs), Base.tail(Base.tail(subidxs)))...))
 
-# Parent matrices are re-indexed with two sub-indices
-reindex(idxs::Tuple{AbstractMatrix, Vararg{Any}}, subidxs::Tuple{Any, Any, Vararg{Any}}) =
-    (Base.@_propagate_inbounds_meta; (idxs[1][subidxs[1], subidxs[2]], reindex(Base.tail(idxs), Base.tail(Base.tail(subidxs)))...))
-
-# In general, we index N-dimensional parent arrays with N indices
-@generated function reindex(idxs::Tuple{AbstractArray{T,N}, Vararg{Any}}, subidxs::Tuple{Vararg{Any}}) where {T,N}
-    if length(subidxs.parameters) >= N
-        subs = [:(subidxs[$d]) for d in 1:N]
-        tail = [:(subidxs[$d]) for d in N+1:length(subidxs.parameters)]
-        :(Base.@_propagate_inbounds_meta; (idxs[1][$(subs...)], reindex(Base.tail(idxs), ($(tail...),))...))
-    else
-        :(throw(ArgumentError("cannot re-index SubArray with fewer indices than dimensions\nThis should not occur; please submit a bug report.")))
+    # In general, we index N-dimensional parent arrays with N indices
+    @generated function reindex(idxs::Tuple{AbstractArray{T,N}, Vararg{Any}}, subidxs::Tuple{Vararg{Any}}) where {T,N}
+        if length(subidxs.parameters) >= N
+            subs = [:(subidxs[$d]) for d in 1:N]
+            tail = [:(subidxs[$d]) for d in N+1:length(subidxs.parameters)]
+            :(Base.@_propagate_inbounds_meta; (idxs[1][$(subs...)], reindex(Base.tail(idxs), ($(tail...),))...))
+        else
+            :(throw(ArgumentError("cannot re-index SubArray with fewer indices than dimensions\nThis should not occur; please submit a bug report.")))
+        end
     end
+else
+    using Base: reindex
 end
 
 # In general, we simply re-index the parent indices by the provided ones
@@ -214,9 +217,20 @@ end
 Base.IndexStyle(::Type{<:FastSSubArray}) = IndexLinear()
 Base.IndexStyle(::Type{<:SSubArray}) = IndexCartesian()
 
+if VERSION < v"1.2"
+    # substrides copied from base because it's different in Julia < v1.2
+    substrides(strds::Tuple{}, ::Tuple{}) = ()
+    substrides(strds::NTuple{N,Int}, I::Tuple{Base.ScalarIndex, Vararg{Any}}) where N = (substrides(Base.tail(strds), Base.tail(I))...,)
+    substrides(strds::NTuple{N,Int}, I::Tuple{Base.Slice, Vararg{Any}}) where N = (first(strds), substrides(Base.tail(strds), Base.tail(I))...)
+    substrides(strds::NTuple{N,Int}, I::Tuple{AbstractRange, Vararg{Any}}) where N = (first(strds)*step(I[1]), substrides(Base.tail(strds), Base.tail(I))...)
+    substrides(strds, I::Tuple{Any, Vararg{Any}}) = throw(ArgumentError("strides is invalid for SSubArrays with indices of type $(typeof(I[1]))"))
+else
+    using Base: substrides
+end
+
 # Strides are the distance in memory between adjacent elements in a given dimension
 # which we determine from the strides of the parent
-Base.strides(V::SSubArray) = Base.substrides(strides(V.parent), V.indices)
+Base.strides(V::SSubArray) = substrides(strides(V.parent), V.indices)
 
 Base.stride(V::SSubArray, d::Integer) = d <= ndims(V) ? strides(V)[d] : strides(V)[end] * size(V)[end]
 
@@ -250,12 +264,16 @@ function Base.pointer(V::SSubArray{T,N,<:Array,<:Tuple{Vararg{Base.RangeIndex}}}
     return pointer(V.parent, index)
 end
 
-# copied from Base because in Julia < 1.2 it works in an incompatible way
-_indices_sub(::Real, I...) = (Base.@_inline_meta; _indices_sub(I...))
-_indices_sub() = ()
-function _indices_sub(i1::AbstractArray, I...)
-    Base.@_inline_meta
-    (Base.unsafe_indices(i1)..., _indices_sub(I...)...)
+if VERSION < v"1.2"
+    # copied from Base because in Julia < 1.2 it works in an incompatible way
+    _indices_sub(::Real, I...) = (Base.@_inline_meta; _indices_sub(I...))
+    _indices_sub() = ()
+    function _indices_sub(i1::AbstractArray, I...)
+        Base.@_inline_meta
+        (Base.unsafe_indices(i1)..., _indices_sub(I...)...)
+    end
+else
+    using Base: _indices_sub
 end
 
 axes(S::SSubArray) = (Base.@_inline_meta; _indices_sub(S.indices...))
