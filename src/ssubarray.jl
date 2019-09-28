@@ -84,10 +84,41 @@ Base._maybe_reindex(V::SSubArray, I, A::Tuple{AbstractArray{<:Base.AbstractCarte
 Base._maybe_reindex(V::SSubArray, I, A::Tuple{Any, Vararg{Any}}) = (Base.@_inline_meta; Base._maybe_reindex(V, I, Base.tail(A)))
 function Base._maybe_reindex(V::SSubArray, I, ::Tuple{})
     Base.@_inline_meta
-    @inbounds idxs = to_indices(V.parent, Base.reindex(V.indices, I))
+    @inbounds idxs = to_indices(V.parent, reindex(V.indices, I))
     # Might be changed to SSubArray in the future when reshaped statically
     # sized views are a thing. This at least makes things work.
     SubArray(V.parent, idxs)
+end
+
+# reindex copied from Base because in pre-1.2 it has an incompatible implementation
+
+reindex(::Tuple{}, ::Tuple{}) = ()
+
+# Skip dropped scalars, so simply peel them off the parent indices and continue
+reindex(idxs::Tuple{Base.ScalarIndex, Vararg{Any}}, subidxs::Tuple{Vararg{Any}}) =
+    (Base.@_propagate_inbounds_meta; (idxs[1], reindex(Base.tail(idxs), subidxs)...))
+
+# Slices simply pass their subindices straight through
+reindex(idxs::Tuple{Base.Slice, Vararg{Any}}, subidxs::Tuple{Any, Vararg{Any}}) =
+    (Base.@_propagate_inbounds_meta; (subidxs[1], reindex(Base.tail(idxs), Base.tail(subidxs))...))
+
+# Re-index into parent vectors with one subindex
+reindex(idxs::Tuple{AbstractVector, Vararg{Any}}, subidxs::Tuple{Any, Vararg{Any}}) =
+    (Base.@_propagate_inbounds_meta; (idxs[1][subidxs[1]], reindex(Base.tail(idxs), Base.tail(subidxs))...))
+
+# Parent matrices are re-indexed with two sub-indices
+reindex(idxs::Tuple{AbstractMatrix, Vararg{Any}}, subidxs::Tuple{Any, Any, Vararg{Any}}) =
+    (Base.@_propagate_inbounds_meta; (idxs[1][subidxs[1], subidxs[2]], reindex(Base.tail(idxs), Base.tail(Base.tail(subidxs)))...))
+
+# In general, we index N-dimensional parent arrays with N indices
+@generated function reindex(idxs::Tuple{AbstractArray{T,N}, Vararg{Any}}, subidxs::Tuple{Vararg{Any}}) where {T,N}
+    if length(subidxs.parameters) >= N
+        subs = [:(subidxs[$d]) for d in 1:N]
+        tail = [:(subidxs[$d]) for d in N+1:length(subidxs.parameters)]
+        :(Base.@_propagate_inbounds_meta; (idxs[1][$(subs...)], reindex(Base.tail(idxs), ($(tail...),))...))
+    else
+        :(throw(ArgumentError("cannot re-index SubArray with fewer indices than dimensions\nThis should not occur; please submit a bug report.")))
+    end
 end
 
 # In general, we simply re-index the parent indices by the provided ones
@@ -95,7 +126,7 @@ SlowSSubArray{S,T,N,P,I} = SSubArray{S,T,N,P,I,false}
 function getindex(V::SSubArray{S,T,N}, I::Vararg{Int,N}) where {S,T,N}
     Base.@_inline_meta
     @boundscheck checkbounds(V, I...)
-    @inbounds r = V.parent[Base.reindex(V.indices, I)...]
+    @inbounds r = V.parent[reindex(V.indices, I)...]
     r
 end
 
@@ -104,7 +135,7 @@ function getindex(V::SSubArray{S,T,N}, i::Int) where {S,T,N}
     Base.@_inline_meta
     @boundscheck checkbounds(V, i)
     subind = Base._to_subscript_indices(V, i)
-    @inbounds r = V.parent[Base.reindex(V.indices, subind)...]
+    @inbounds r = V.parent[reindex(V.indices, subind)...]
     r
 end
 
@@ -145,14 +176,14 @@ end
 function setindex!(V::SSubArray{T,N}, x, I::Vararg{Int,N}) where {T,N}
     Base.@_inline_meta
     @boundscheck checkbounds(V, I...)
-    @inbounds V.parent[Base.reindex(V.indices, I)...] = x
+    @inbounds V.parent[reindex(V.indices, I)...] = x
     V
 end
 # overrides the default setindex! from `StaticArrays`
 function setindex!(V::SSubArray, x, i::Int)
     Base.@_inline_meta
     subind = Base._to_subscript_indices(V, i)
-    @inbounds V.parent[Base.reindex(V.indices, subind)...] = x
+    @inbounds V.parent[reindex(V.indices, subind)...] = x
     V
 end
 function setindex!(V::FastSSubArray, x, i::Int)
