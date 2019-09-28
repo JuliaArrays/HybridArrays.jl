@@ -219,7 +219,11 @@ function Base.pointer(V::SSubArray{T,N,<:Array,<:Tuple{Vararg{Base.RangeIndex}}}
     return pointer(V.parent, index)
 end
 
-axes(S::SSubArray) = (Base.@_inline_meta; Base._indices_sub(S.indices...))
+if VERSION < v"1.2.0"
+    axes(S::SSubArray) = (Base.@_inline_meta; _indices_sub(S, S.indices...))
+else
+    axes(S::SSubArray) = (Base.@_inline_meta; Base._indices_sub(S.indices...))
+end
 
 ## Compatibility
 # deprecate?
