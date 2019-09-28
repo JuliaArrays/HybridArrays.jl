@@ -38,11 +38,18 @@ function SSubArray(indexing::Any, ::Val{:dynamic_fixed_false}, parent::Union{Sta
     return SubArray(indexing, parent, indices, idsum)
 end
 
+if VERSION < v"1.1"
+    @noinline __subarray_throw_boundserror(::Type{T}, parent, indices, offset1, stride1, I) where {T} =
+    throw(BoundsError(T(parent, indices, offset1, stride1), I))
+else
+    using Base: __subarray_throw_boundserror
+end
+
 # This makes it possible to elide view allocation in cases where the
 # view is indexed with a boundscheck but otherwise all its uses
 # are inlined
 @inline Base.throw_boundserror(A::SSubArray, I) =
-    Base.__subarray_throw_boundserror(typeof(A), A.parent, A.indices, A.offset1, A.stride1, I)
+    __subarray_throw_boundserror(typeof(A), A.parent, A.indices, A.offset1, A.stride1, I)
 
 # Simple utilities
 size(V::SSubArray) = (Base.@_inline_meta; map(n->Int(Base.unsafe_length(n)), axes(V)))
