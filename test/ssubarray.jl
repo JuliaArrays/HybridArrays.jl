@@ -395,6 +395,23 @@ _ndims(x) = 1
     @test ndims(sA) == 3
     @test axes(sA) === (Base.OneTo(2), Base.OneTo(2), Base.OneTo(2))
 
+    sA = view(A, SOneTo(1), SOneTo(5), :) # SSubArray
+    @test isa(sA, HybridArrays.SSubArray)
+    @test @inferred(strides(sA)) == (1, 3, 15)
+    @test parent(sA) == A
+    @test parentindices(sA) == (SOneTo(1), SOneTo(5), Base.Slice(SOneTo(8)))
+    @test Base.parentdims(sA) == [1:3;]
+    @test size(sA) == (1, 5, 8)
+    @test axes(sA) === (Base.OneTo(1), Base.OneTo(5), SOneTo(8))
+    @test sA[1, 2, 1:8][:] == [4, 19, 34, 49, 4, 79, 94, 109]
+    sA[2:5:end] .= -1
+    @test all(sA[2:5:end] .== -1)
+    @test all(A[4:15:120] .== -1)
+    @test @inferred(strides(sA)) == (1,3,15)
+    @test stride(sA,3) == 15
+    @test stride(sA,4) == 120
+    test_bounds(sA)
+
     # logical indexing Julia #4763
     A = view(MVector{10}([1:10;]), 5:8)
     @test A[A.<7] == view(A, A.<7) == [5, 6]

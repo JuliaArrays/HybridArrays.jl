@@ -49,20 +49,20 @@ size(V::SSubArray) = (Base.@_inline_meta; map(n->Int(Base.unsafe_length(n)), axe
 
 similar(V::SSubArray, T::Type, dims::Dims) = similar(V.parent, T, dims)
 
-sizeof(V::SSubArray) = length(V) * sizeof(eltype(V))
+Base.sizeof(V::SSubArray) = length(V) * sizeof(eltype(V))
 
 copy(V::SSubArray) = V.parent[V.indices...]
 
-parent(V::SSubArray) = V.parent
-parentindices(V::SSubArray) = V.indices
+Base.parent(V::SSubArray) = V.parent
+Base.parentindices(V::SSubArray) = V.indices
 
 ## Aliasing detection
 dataids(A::SSubArray) = (dataids(A.parent)..., Base._splatmap(dataids, A.indices)...)
-unaliascopy(A::SSubArray) = typeof(A)(unaliascopy(A.parent), map(unaliascopy, A.indices), A.offset1, A.stride1)
+Base.unaliascopy(A::SSubArray) = typeof(A)(unaliascopy(A.parent), map(unaliascopy, A.indices), A.offset1, A.stride1)
 
 # When the parent is an Array we can trim the size down a bit. In the future this
 # could possibly be extended to any mutable array.
-function unaliascopy(V::SSubArray{S,T,N,A,I,LD}) where {S,T,N,A<:Array,I<:Tuple{Vararg{Union{Real,AbstractRange,Array}}},LD}
+function Base.unaliascopy(V::SSubArray{S,T,N,A,I,LD}) where {S,T,N,A<:Array,I<:Tuple{Vararg{Union{Real,AbstractRange,Array}}},LD}
     dest = Array{T}(undef, index_lengths(V.indices...))
     copyto!(dest, V)
     SSubArray{S,T,N,A,I,LD}(dest, map(_trimmedindex, V.indices), 0, Int(LD))
@@ -99,7 +99,7 @@ function getindex(V::SSubArray{S,T,N}, I::Vararg{Int,N}) where {S,T,N}
     r
 end
 
-# overrides default erroring getindex for `StaticArray`
+# overrides default erroring getindex from `StaticArrays`
 function getindex(V::SSubArray{S,T,N}, i::Int) where {S,T,N}
     Base.@_inline_meta
     @boundscheck checkbounds(V, i)
@@ -148,6 +148,13 @@ function setindex!(V::SSubArray{T,N}, x, I::Vararg{Int,N}) where {T,N}
     @inbounds V.parent[Base.reindex(V.indices, I)...] = x
     V
 end
+# overrides the default setindex! from `StaticArrays`
+function setindex!(V::SSubArray, x, i::Int)
+    Base.@_inline_meta
+    subind = Base._to_subscript_indices(V, i)
+    @inbounds V.parent[Base.reindex(V.indices, subind)...] = x
+    V
+end
 function setindex!(V::FastSSubArray, x, i::Int)
     Base.@_inline_meta
     @boundscheck checkbounds(V, i)
@@ -178,7 +185,7 @@ Base.IndexStyle(::Type{<:SSubArray}) = IndexCartesian()
 
 # Strides are the distance in memory between adjacent elements in a given dimension
 # which we determine from the strides of the parent
-Base.strides(V::SSubArray) = substrides(strides(V.parent), V.indices)
+Base.strides(V::SSubArray) = Base.substrides(strides(V.parent), V.indices)
 
 Base.stride(V::SSubArray, d::Integer) = d <= ndims(V) ? strides(V)[d] : strides(V)[end] * size(V)[end]
 
