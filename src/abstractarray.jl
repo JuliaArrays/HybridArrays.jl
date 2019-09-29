@@ -34,4 +34,10 @@ similar(::Type{<:HybridArray{S,T,N,M}},::Type{T2}) where {S,T,N,M,T2} = HybridAr
 similar(::Type{SA},::Type{T},s::Size{S}) where {SA<:HybridArray,T,S} = hybridarray_similar_type(T,s,StaticArrays.length_val(s))(undef)
 hybridarray_similar_type(::Type{T},s::Size{S},::Type{Val{D}}) where {T,S,D} = HybridArray{Tuple{S...},T,D,length(s)}
 
+# for internal use only (used in vcat and hcat)
+# TODO: try to make this less hacky
+# adding method to similar_type ends up being used in broadcasting for some reason?
+_h_similar_type(::Type{A},::Type{T},s::Size{S}) where {A<:HybridArray,T,S} = hybridarray_similar_type(T,s,StaticArrays.length_val(s))
+
+
 Size(::Type{<:HybridArray{S}}) where {S} = Size(S)

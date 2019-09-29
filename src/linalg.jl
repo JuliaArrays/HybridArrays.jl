@@ -49,12 +49,15 @@ const HybridVecOrMatLike{T} = Union{HybridVector{<:Any, T}, HybridMatrixLike{T}}
 
     return quote
         Base.@_inline_meta
-        @inbounds return similar_type(a, promote_type(eltype(a), eltype(b)), Size($Snew))(hcat(a.data, b.data))
+        @inbounds return _h_similar_type($a, promote_type(eltype(a), eltype(b)), Size($Snew))(vcat(a.data, b.data))
     end
 end
 
 @inline hcat(a::HybridVecOrMatLike, b::HybridVecOrMatLike) = _hcat(Size(a), Size(b), a, b)
 @inline hcat(a::HybridVecOrMatLike, b::HybridVecOrMatLike, c::HybridVecOrMatLike...) = hcat(hcat(a,b), hcat(c...))
+
+# used in _vcat and _hcat
+@inline +(::Dynamic, ::Dynamic) = Dynamic()
 
 @generated function _hcat(::Size{Sa}, ::Size{Sb}, a::HybridVecOrMatLike, b::HybridVecOrMatLike) where {Sa, Sb}
     if Sa[1] != Sb[1]
@@ -65,6 +68,6 @@ end
 
     return quote
         Base.@_inline_meta
-        return similar_type(a, promote_type(eltype(a), eltype(b)), Size($Snew))(hcat(a.data, b.data))
+        return _h_similar_type($a, promote_type(eltype(a), eltype(b)), Size($Snew))(hcat(a.data, b.data))
     end
 end
