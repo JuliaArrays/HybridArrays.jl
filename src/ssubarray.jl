@@ -65,7 +65,7 @@ Base.parentindices(V::SSubArray) = V.indices
 
 ## Aliasing detection
 dataids(A::SSubArray) = (dataids(A.parent)..., Base._splatmap(dataids, A.indices)...)
-Base.unaliascopy(A::SSubArray) = typeof(A)(unaliascopy(A.parent), map(unaliascopy, A.indices), A.offset1, A.stride1)
+Base.unaliascopy(A::SSubArray) = typeof(A)(Base.unaliascopy(A.parent), map(Base.unaliascopy, A.indices), A.offset1, A.stride1)
 
 # When the parent is an Array we can trim the size down a bit. In the future this
 # could possibly be extended to any mutable array.
@@ -248,7 +248,7 @@ Base.strides(V::SSubArray) = substrides(strides(V.parent), V.indices)
 
 Base.stride(V::SSubArray, d::Integer) = d <= ndims(V) ? strides(V)[d] : strides(V)[end] * size(V)[end]
 
-Base.elsize(::Type{<:SSubArray{<:Any,<:Any,<:Any,P}}) where {P} = elsize(P)
+Base.elsize(::Type{<:SSubArray{<:Any,<:Any,<:Any,P}}) where {P} = Base.elsize(P)
 
 Base.iscontiguous(A::SSubArray) = Base.iscontiguous(typeof(A))
 Base.iscontiguous(::Type{<:SSubArray}) = false

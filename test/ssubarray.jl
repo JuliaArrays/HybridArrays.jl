@@ -348,6 +348,7 @@ _ndims(x) = 1
     # Tests where non-trailing dimensions are preserved
     A = MArray{Tuple{3,5,8}}(copy(reshape(1:120, 3, 5, 8)))
     sA = view(A, 2:2, 1:5, :)
+    @test !Base.iscontiguous(sA)
     @test @inferred(strides(sA)) == (1, 3, 15)
     @test parent(sA) == A
     @test parentindices(sA) == (2:2, 1:5, Base.Slice(1:8))
@@ -443,6 +444,8 @@ _ndims(x) = 1
     @test all(sA[2:5:end] .== -1)
     @test all(A[2:5:12] .== -1)
     test_bounds(sA)
+    @test Base.iscontiguous(sA)
+    @test_broken Base.elsize(sA) == Base.elsize(A)
 
     sA = view(A, 1:3, 1:5, 5)
     @test Base.parentdims(sA) == [1:2;]
@@ -483,7 +486,7 @@ _ndims(x) = 1
     # tests @view (and replace_ref_end!)
     X = MArray{Tuple{2,3,4}}(reshape(1:24,2,3,4))
 
-    @test_broken isa(@view(X[1:3]), HybridArrays.SSubArray)
+    @test isa(@view(X[1:3]), SubArray)
     @test isa(@view(X[SOneTo(2),1,1]), HybridArrays.SSubArray)
 
     # Julia issue #18581: slices with OneTo axes can be linear
@@ -496,12 +499,12 @@ _ndims(x) = 1
     # Julia PR #25321
     # checks that issue in type inference is resolved
     A = MArray{Tuple{5,5,5,5}}(rand(5,5,5,5))
-    V = view(A, 1:1 ,:, 1:3, :)
+    V = view(A, SOneTo(1) ,:, SOneTo(3), :)::HybridArrays.SSubArray
     @test @inferred(strides(V)) == (1, 5, 25, 125)
 
     # Julia Issue #26263 — ensure that unaliascopy properly trims the array
     A = MArray{Tuple{5,5,5,5}}(rand(5,5,5,5))
-    V = view(A, 2:5, :, 2:5, 1:2:5)
+    V = view(A, SVector(2,3,4,5), :, SVector(2,3,4,5), SVector(1,3,5))::HybridArrays.SSubArray
     @test @inferred(Base.unaliascopy(V)) == V == A[2:5, :, 2:5, 1:2:5]
     @test @inferred(sum(Base.unaliascopy(V))) ≈ sum(V) ≈ sum(A[2:5, :, 2:5, 1:2:5])
 end
