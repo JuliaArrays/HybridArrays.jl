@@ -141,3 +141,4 @@ end
 include("abstractarray.jl")
 include("broadcast.jl")
 include("linalg.jl")
+include("ssubarray.jl")

@@ -104,16 +104,18 @@ end
     if lininds === nothing
         for current_ind ∈ indices
             cinds = _get_indices(current_ind.I, 1, inds...)
-            exprs[current_ind.I...] = :(getindex(sa.data, $(cinds...)))
+            exprs[current_ind.I...] = :(getindex(sadata, $(cinds...)))
         end
         return quote
             Base.@_propagate_inbounds_meta
+            sadata = sa.data
             SArray{$Tnewsize,$T}(tuple($(exprs...)))
         end
     else
-        exprs = [:(getindex(sa.data, $id)) for id ∈ lininds[2]]
+        exprs = [:(getindex(sadata, $id)) for id ∈ lininds[2]]
         return quote
             Base.@_propagate_inbounds_meta
+            sadata = sa.data
             $(lininds[1])
             SArray{$Tnewsize,$T}(tuple($(exprs...)))
         end
@@ -135,14 +137,26 @@ function new_out_size_nongen(::Type{Size}, inds...) where Size
     return tuple(os...)
 end
 
+function new_out_size(S::Type{Size}, inds::StaticArrays.StaticIndexing...) where Size
+    return new_out_size(S, map(StaticArrays.unwrap, inds)...)
+end
+
 @generated function new_out_size(::Type{Size}, inds...) where Size
     os = []
     map(Size.parameters, inds) do s, i
         if i == Int
         elseif i <: StaticVector
             push!(os, i.parameters[1].parameters[1])
+        elseif i <: Base.Slice{<:StaticVector}
+            push!(os, i.parameters[1].parameters[1].parameters[1])
         elseif i == Colon
             push!(os, s)
+        elseif i <: SOneTo
+            push!(os, i.parameters[1])
+        elseif i <: Base.Slice{<:SOneTo}
+            push!(os, i.parameters[1].parameters[1])
+        elseif i <: Base.OneTo || i <: AbstractArray
+            push!(os, Dynamic())
         else
             error("Unknown index type: $i")
         end
@@ -225,12 +239,13 @@ end
         exprs = similar(indices, Expr)
         for current_ind ∈ indices
             cinds = _get_indices(current_ind.I, 1, inds...)
-            exprs[current_ind.I...] = :(setindex!(sa.data, v[$(cinds...)], $(cinds...)))
+            exprs[current_ind.I...] = :(setindex!(sadata, v[$(cinds...)], $(cinds...)))
         end
 
         if v <: StaticArray
             return quote
                 @_propagate_inbounds_meta
+                sadata = sa.data
                 @inbounds $(Expr(:block, exprs...))
             end
         else
@@ -239,17 +254,19 @@ end
                 if size(v) != $newsize
                     throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
                 end
+                sadata = sa.data
                 @inbounds $(Expr(:block, exprs...))
             end
         end
 
     else
-        exprs = [:(setindex!(sa.data, v[$iid], $id)) for (iid, id) ∈ enumerate(lininds[2])]
+        exprs = [:(setindex!(sadata, v[$iid], $id)) for (iid, id) ∈ enumerate(lininds[2])]
 
         if v <: StaticArray
             return quote
                 Base.@_propagate_inbounds_meta
                 $(lininds[1])
+                sadata = sa.data
                 @inbounds $(Expr(:block, exprs...))
             end
         else
@@ -259,6 +276,7 @@ end
                     throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
                 end
                 $(lininds[1])
+                sadata = sa.data
                 @inbounds $(Expr(:block, exprs...))
             end
         end

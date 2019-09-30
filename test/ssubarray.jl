@@ -1,0 +1,510 @@
+# This file is adapted from Julia. License is MIT
+
+using Test, Random, HybridArrays, StaticArrays
+
+######## Utilities ###########
+
+# Generate an array similar to A[indx1, indx2, ...], but only call
+# getindex with scalar-valued indices. This will be safe even if
+# `getindex` someday calls `view`.
+
+# The "nodrop" variant does not drop any dimensions (not even trailing ones)
+function Agen_nodrop(A::AbstractArray, I...)
+    irep = replace_colon(A, I)
+    _Agen(A, ensure_iterable(irep)...)
+end
+
+# This drops scalar dimensions
+function Agen_slice(A::AbstractArray, I...)
+    irep = replace_colon(A, I)
+    B = _Agen(A, ensure_iterable(irep)...)
+    sd = Int[]
+    for i = 1:length(I)
+        if isa(I[i], Real)
+            push!(sd, i)
+        end
+    end
+    dropdims(B, dims=sd)
+end
+
+_Agen(A, i1) = [A[j1] for j1 in i1]
+_Agen(A, i1, i2) = [A[j1,j2] for j1 in i1, j2 in i2]
+_Agen(A, i1, i2, i3) = [A[j1,j2,j3] for j1 in i1, j2 in i2, j3 in i3]
+_Agen(A, i1, i2, i3, i4) = [A[j1,j2,j3,j4] for j1 in i1, j2 in i2, j3 in i3, j4 in i4]
+_Agen(A, i1, i2, i3, i4, i5) = [A[j1,j2,j3,j4,j5] for j1 in i1, j2 in i2, j3 in i3, j4 in i4, j5 in i5]
+_Agen(A, i1, i2, i3, i4, i5, i6) = [A[j1,j2,j3,j4,j5,j6] for j1 in i1, j2 in i2, j3 in i3, j4 in i4, j5 in i5, j6 in i6]
+
+function replace_colon(A::AbstractArray, I)
+    Iout = Vector{Any}(undef, length(I))
+    I == (:,) && return (1:length(A),)
+    for d = 1:length(I)
+        Iout[d] = isa(I[d], Colon) ? (1:size(A,d)) : I[d]
+    end
+    (Iout...,)
+end
+
+ensure_iterable(::Tuple{}) = ()
+ensure_iterable(t::Tuple{Union{Number, CartesianIndex}, Vararg{Any}}) = ((t[1],), ensure_iterable(Base.tail(t))...)
+ensure_iterable(t::Tuple{Any, Vararg{Any}}) = (t[1], ensure_iterable(Base.tail(t))...)
+
+index_ndims(t::Tuple) = tup2val(Base.index_ndims(t))
+tup2val(::NTuple{N}) where {N} = Val(N)
+
+# To avoid getting confused by manipulations that are implemented for SubArrays,
+# it's good to copy the contents to an Array. This version protects against
+# `similar` ever changing its meaning.
+function copy_to_array(A::AbstractArray)
+    Ac = Array{eltype(A)}(undef, size(A))
+    copyto!(Ac, A)
+end
+
+# Discover the highest dimension along which the values in A are
+# separated by a single increment.  If A was extracted via getindex
+# from reshape(1:N, ...), this is equivalent to finding the highest
+# dimension of the SubArray consistent with a single stride in the
+# parent array.
+function single_stride_dim(A::Array)
+    ld = 0
+    while ld < ndims(A)
+        # Collapse all dimensions up to & including ld+1 into the first dimension
+        shp = [prod(size(A)[1:ld+1])]
+        for j = ld+2:ndims(A)
+            push!(shp, size(A,j))
+        end
+        Ar = reshape(A, shp...)
+        # Compute the diff along dimension 1
+        if size(Ar, 1) > 1
+            indices = map(d->1:size(Ar,d), [1:ndims(Ar);])
+            indicesp = copy(indices); indicesp[1] = 2:size(Ar,1)
+            indicesm = copy(indices); indicesm[1] = 1:size(Ar,1)-1
+            dA = Ar[indicesp...] - Ar[indicesm...]
+            ustride = unique(dA[:])
+            if length(ustride) == 1  # is it a single stride?
+                ld += 1
+            else
+                break
+            end
+        else
+            ld += 1
+        end
+    end
+    ld
+end
+single_stride_dim(@nospecialize(A)) = single_stride_dim(copy_to_array(A))
+
+# Testing equality of AbstractArrays, using several different methods to access values
+function test_cartesian(@nospecialize(A), @nospecialize(B))
+    isgood = true
+    for (IA, IB) in zip(eachindex(A), eachindex(B))
+        if A[IA] != B[IB]
+            @show IA IB A[IA] B[IB]
+            isgood = false
+            break
+        end
+    end
+    if !isgood
+        @show A
+        @show B
+        error("Mismatch")
+    end
+end
+
+function test_linear(@nospecialize(A), @nospecialize(B))
+    length(A) == length(B) || error("length mismatch")
+    isgood = true
+    for (iA, iB) in zip(1:length(A), 1:length(B))
+        if A[iA] != B[iB]
+            isgood = false
+            break
+        end
+    end
+    if !isgood
+        @show A
+        @show A.indices
+        @show B
+        error("Mismatch")
+    end
+end
+
+# "mixed" means 2 indices even for N-dimensional arrays
+test_mixed(::AbstractArray{T,1}, ::AbstractArray) where {T} = nothing
+test_mixed(::AbstractArray{T,2}, ::AbstractArray) where {T} = nothing
+test_mixed(A, B::AbstractArray) = _test_mixed(A, reshape(B, size(A)))
+function _test_mixed(@nospecialize(A), @nospecialize(B))
+    m = size(A, 1)
+    n = size(A, 2)
+    isgood = true
+    for J in CartesianIndices(size(A)[2:end]), i in 1:m
+        if A[i,J] != B[i,J]
+            isgood = false
+            break
+        end
+    end
+    if !isgood
+        @show A
+        @show B
+        error("Mismatch")
+    end
+    nothing
+end
+
+function test_bounds(@nospecialize(A))
+    @test_throws BoundsError A[0]
+    @test_throws BoundsError A[end+1]
+    trailing2 = ntuple(x->1, max(ndims(A)-2, 0))
+    trailing3 = ntuple(x->1, max(ndims(A)-3, 0))
+    @test_throws BoundsError A[1, 0, trailing2...]
+    @test_throws BoundsError A[1, end+1, trailing2...]
+    @test_throws BoundsError A[1, 1, 0, trailing3...]
+    @test_throws BoundsError A[1, 1, end+1, trailing3...]
+    @test_throws BoundsError A[0, 1, trailing2...]
+    @test_throws BoundsError A[end+1, 1, trailing2...]
+    @test_throws BoundsError A[0, 1, 1, trailing3...]
+    @test_throws BoundsError A[end+1, 1, 1, trailing3...]
+    @test_throws BoundsError A[1, 0, 1, trailing3...]
+    @test_throws BoundsError A[1, end+1, 1, trailing3...]
+    @test_throws BoundsError A[1, 0]
+    @test_throws BoundsError A[1, end+1]
+    @test_throws BoundsError A[1, 1, 0]
+    @test_throws BoundsError A[1, 1, end+1]
+    @test_throws BoundsError A[0, 1]
+    @test_throws BoundsError A[end+1, 1]
+    @test_throws BoundsError A[0, 1, 1]
+    @test_throws BoundsError A[end+1, 1, 1]
+    @test_throws BoundsError A[1, 0, 1]
+    @test_throws BoundsError A[1, end+1, 1]
+end
+
+function dim_break_linindex(I)
+    i = 1
+    while i <= length(I) && !isa(I[i], Vector{Int})
+        i += 1
+    end
+    i - 1
+end
+
+function runsubarraytests(A::AbstractArray, I...)
+    # Direct test of linear indexing inference
+    C = Agen_nodrop(A, I...)
+    ld = min(single_stride_dim(C), dim_break_linindex(I))
+    S = view(A, I...)
+    if Base.iscontiguous(S)
+        @test S.stride1 == 1
+    end
+    test_linear(S, C)
+    test_cartesian(S, C)
+    test_mixed(S, C)
+end
+
+function runsubarraytests(@nospecialize(A), I...)
+    # When A was created with view, we have to check bounds, since some
+    # of the "residual" dimensions have size 1. It's possible that we
+    # need dedicated tests for view.
+    for d = 1:length(I)-1
+        if !isa(I[d], Colon) && any(I[d] .> size(A,d))
+            return nothing
+        end
+    end
+    if !isa(I[end], Colon) && any(I[end] .> prod(size(A)[length(I):end]))
+        return nothing
+    end
+    AA = copy_to_array(A)
+    # Direct test of linear indexing inference
+    C = Agen_nodrop(AA, I...)
+    Cld = ld = min(single_stride_dim(C), dim_break_linindex(I))
+    Cdim = AIindex = 0
+    while Cdim <= Cld && AIindex < length(A.indices)
+        AIindex += 1
+        if isa(A.indices[AIindex], Real)
+            ld += 1
+        else
+            Cdim += 1
+        end
+    end
+    local S
+    try
+        S = view(A, I...)
+    catch
+        @show typeof(A)
+        @show A.indices
+        @show I
+        rethrow()
+    end
+    test_linear(S, C)
+    test_cartesian(S, C)
+    test_mixed(S, C)
+end
+
+# indexN is a cartesian index, indexNN is a linear index for 2 dimensions, and indexNNN is a linear index for 3 dimensions
+function runviews(SB::AbstractArray, indexN, indexNN, indexNNN)
+    @assert ndims(SB) > 2
+    for i3 in indexN, i2 in indexN, i1 in indexN
+        runsubarraytests(SB, i1, i2, i3, ntuple(x->1, max(ndims(SB)-3, 0))...)
+    end
+    for i2 in indexN, i1 in indexN
+        runsubarraytests(SB, i1, i2, ntuple(x->1, max(ndims(SB)-2, 0))...)
+    end
+    for i1 in indexNNN
+        runsubarraytests(SB, i1)
+    end
+end
+
+function runviews(SB::AbstractArray{T, 3} where T, indexN, indexNN, indexNNN)
+    @assert ndims(SB) > 2
+    for i3 in indexN, i2 in indexN, i1 in indexN
+        runsubarraytests(SB, i1, i2, i3)
+    end
+    for i2 in indexN, i1 in indexN
+        runsubarraytests(SB, i1, i2, 1)
+    end
+    for i1 in indexNNN
+        runsubarraytests(SB, i1)
+    end
+end
+
+function runviews(SB::AbstractArray{T,2}, indexN, indexNN, indexNNN) where T
+    for i2 in indexN, i1 in indexN
+        runsubarraytests(SB, i1, i2)
+    end
+    for i1 in indexNN
+        runsubarraytests(SB, i1)
+    end
+end
+
+function runviews(SB::AbstractArray{T,1}, indexN, indexNN, indexNNN) where T
+    for i1 in indexN
+        runsubarraytests(SB, i1)
+    end
+end
+
+runviews(SB::AbstractArray{T,0}, indexN, indexNN, indexNNN) where {T} = nothing
+
+_ndims(::AbstractArray{T,N}) where {T,N} = N
+_ndims(x) = 1
+
+######### Tests #########
+@testset "SSubArray" begin
+    testfull = false
+
+    ### Views from SArrays ###
+    index5 = (1, :, 2:5, (@SVector [4,1,5]), reshape(@SVector [2]), view(1:5, @SMatrix [2 3 4 1]))  # all work with at least size 5
+    index25 = (3, :, 2:11, (@SVector [19,9,7]), reshape(@SVector [10]), view(1:25, @SMatrix [19 15; 4 24]))
+    index125 = (113, :, 85:121, (@SVector [99,14,103]), reshape(@SVector [72]), view(1:125,reshape((@SVector [25,4,102,67]), 1, 2, 2)))
+
+    if testfull
+        let A = copy(reshape(1:5*7*11, 11, 7, 5))
+            runviews(A, index5, index25, index125)
+        end
+    end
+
+    ### Views from views ###
+
+    # "outer" indices create snips that have at least size 5 along each dimension,
+    # with the exception of Int-slicing
+    oindex = (:, 6, 3:7, reshape(@SVector [12]), (@SVector [8,4,6,12,5,7]), [3:7 1:5 2:6 4:8 5:9])
+
+    if testfull
+        let B = MArray{Tuple{13,13,13}}(copy(reshape(1:13^3, 13, 13, 13)))
+            for o3 in oindex, o2 in oindex, o1 in oindex
+                viewB = view(B, o1, o2, o3)
+                runviews(viewB, index5, index25, index125)
+            end
+        end
+    end
+
+    if !testfull
+        let B = MArray{Tuple{9,7,7}}(copy(reshape(1:9*7*7, 9, 7, 7)))
+            for oind in ((:,:,:),
+                         (:,:,4),
+                         (:,4,:),
+                         (4,:,:),
+                         (:,2:6,:),
+                         (2:6,:,:),
+                         (2:6,5,:),
+                         (2:6,5,0x5),
+                         (6,UInt(2):UInt(6),2:6),
+                         (9:-2:1,:,:),
+                         ([1,4,6,5,7],:,2:6),
+                         (6,CartesianIndex.(5,[2,4,6,5,7])),
+                         (CartesianIndex(7,5),[2,4,6,5,7]),
+                         (1,:,view(1:7,[7,5,4,2,1])),
+                         (view(1:7,[6,2,4,3,1]),2:6,4),
+                         ([1:5 2:6 3:7 4:8 5:9], :, 3))
+                runsubarraytests(B, oind...)
+                viewB = view(B, oind...)
+                runviews(viewB, index5, index25, index125)
+            end
+        end
+    end
+
+    # Julia issue #11289
+    x11289 = MMatrix{5,5}(randn(5,5))
+    @test isempty(view(x11289, Int[], :))
+    @test isempty(view(x11289, [2,5], Int[]))
+    @test isempty(view(x11289, Int[], 2))
+
+    ####### "Classical" tests #######
+
+    # Tests where non-trailing dimensions are preserved
+    A = MArray{Tuple{3,5,8}}(copy(reshape(1:120, 3, 5, 8)))
+    sA = view(A, 2:2, 1:5, :)
+    @test !Base.iscontiguous(sA)
+    @test @inferred(strides(sA)) == (1, 3, 15)
+    @test parent(sA) == A
+    @test parentindices(sA) == (2:2, 1:5, Base.Slice(1:8))
+    @test Base.parentdims(sA) == [1:3;]
+    @test size(sA) == (1, 5, 8)
+    @test axes(sA) === (Base.OneTo(1), Base.OneTo(5), SOneTo(8))
+    @test sA[1, 2, 1:8][:] == [5:15:120;]
+    sA[2:5:end] .= -1
+    @test all(sA[2:5:end] .== -1)
+    @test all(A[5:15:120] .== -1)
+    @test @inferred(strides(sA)) == (1,3,15)
+    @test stride(sA,3) == 15
+    @test stride(sA,4) == 120
+    test_bounds(sA)
+    sA = view(A, 1:3, 1:5, 5)
+    @test Base.parentdims(sA) == [1:2;]
+    sA[1:3,1:5] .= -2
+    @test all(A[:,:,5] .== -2)
+    fill!(sA, -3)
+    @test all(A[:,:,5] .== -3)
+    sA[:] .= 4
+    @test all(A[:,:,5] .== 4)
+    @test @inferred(strides(sA)) == (1,3)
+    test_bounds(sA)
+    sA = view(A, 1:3, 3:3, 2:5)
+    @test Base.parentdims(sA) == [1:3;]
+    @test size(sA) == (3,1,4)
+    @test axes(sA) === (Base.OneTo(3), Base.OneTo(1), Base.OneTo(4))
+    @test sA == A[1:3,3:3,2:5]
+    @test sA[:] == A[1:3,3,2:5][:]
+    test_bounds(sA)
+    sA = view(A, 1:2:3, 1:3:5, 1:2:8)
+    @test Base.parentdims(sA) == [1:3;]
+    @test @inferred(strides(sA)) == (2,9,30)
+    @test sA[:] == A[1:2:3, 1:3:5, 1:2:8][:]
+    # issue #8807
+    @test view(view([1:5;], 1:5), 1:5) == [1:5;]
+    # Test with mixed types
+    @test sA[:, Int16[1,2], big(2)] == [31 40; 33 42]
+    test_bounds(sA)
+    sA = view(A, 1:1, 1:5, [1 3; 4 2])
+    @test ndims(sA) == 4
+    @test axes(sA) === (Base.OneTo(1), Base.OneTo(5), Base.OneTo(2), Base.OneTo(2))
+    sA = view(A, 1:2, 3, [1 3; 4 2])
+    @test ndims(sA) == 3
+    @test axes(sA) === (Base.OneTo(2), Base.OneTo(2), Base.OneTo(2))
+
+    sA = view(A, SOneTo(1), SOneTo(5), :) # SSubArray
+    @test isa(sA, HybridArrays.SSubArray)
+    @test @inferred(strides(sA)) == (1, 3, 15)
+    @test parent(sA) == A
+    @test parentindices(sA) == (SOneTo(1), SOneTo(5), Base.Slice(SOneTo(8)))
+    @test Base.parentdims(sA) == [1:3;]
+    @test size(sA) == (1, 5, 8)
+    @test axes(sA) === (Base.OneTo(1), Base.OneTo(5), SOneTo(8))
+    @test sA[1, 2, 1:8][:] == [4, 19, 34, 49, 4, 79, 94, 109]
+    sA[2:5:end] .= -1
+    @test all(sA[2:5:end] .== -1)
+    @test all(A[4:15:120] .== -1)
+    @test @inferred(strides(sA)) == (1,3,15)
+    @test stride(sA,3) == 15
+    @test stride(sA,4) == 120
+    test_bounds(sA)
+
+    # logical indexing Julia #4763
+    A = view(MVector{10}([1:10;]), 5:8)
+    @test A[A.<7] == view(A, A.<7) == [5, 6]
+    @test Base.unsafe_getindex(A, A.<7) == [5, 6]
+    B = MMatrix{4,4}(reshape(1:16, 4, 4))
+    sB = view(B, 2:3, 2:3)
+    @test sB[sB.>8] == view(sB, sB.>8) == [10, 11]
+    @test Base.unsafe_getindex(sB, sB.>8) == [10, 11]
+
+    # Tests where dimensions are dropped
+    A = MArray{Tuple{3,5,8}}(copy(reshape(1:120, 3, 5, 8)))
+    sA = view(A, 2, :, 1:8)
+    @test parent(sA) == A
+    @test parentindices(sA) == (2, Base.Slice(1:5), 1:8)
+    @test Base.parentdims(sA) == [2:3;]
+    @test size(sA) == (5, 8)
+    @test axes(sA) === (SOneTo(5), Base.OneTo(8))
+    @test @inferred(strides(sA)) == (3,15)
+    @test sA[2, 1:8][:] == [5:15:120;]
+    @test sA[:,1] == [2:3:14;]
+    @test sA[2:5:end] == [5:15:110;]
+    sA[2:5:end] .= -1
+    @test all(sA[2:5:end] .== -1)
+    @test all(A[5:15:120] .== -1)
+    test_bounds(sA)
+
+    sA = view(A, :, :, 1)
+    sA[2:5:end] .= -1
+    @test all(sA[2:5:end] .== -1)
+    @test all(A[2:5:12] .== -1)
+    test_bounds(sA)
+    @test Base.iscontiguous(sA)
+    @test_broken Base.elsize(sA) == Base.elsize(A)
+
+    sA = view(A, 1:3, 1:5, 5)
+    @test Base.parentdims(sA) == [1:2;]
+    @test size(sA) == (3,5)
+    @test axes(sA) === (Base.OneTo(3),Base.OneTo(5))
+    @test @inferred(strides(sA)) == (1,3)
+    test_bounds(sA)
+    sA = view(A, 1:2:3, 3, 1:2:8)
+    @test Base.parentdims(sA) == [1,3]
+    @test size(sA) == (2,4)
+    @test axes(sA) === (Base.OneTo(2), Base.OneTo(4))
+    @test @inferred(strides(sA)) == (2,30)
+    @test sA[:] == A[sA.indices...][:]
+    test_bounds(sA)
+
+    let a = [5:8;]
+        @test parent(a) == a
+        @test parentindices(a) == (1:4,)
+    end
+
+    # Julia issue #6218 - logical indexing
+    A = MArray{Tuple{2,2,3}}(rand(2, 2, 3))
+    msk = fill(true, 2, 2)
+    msk[2,1] = false
+    sA = view(A, :, :, 1)
+    sA[msk] .= 1.0
+    @test sA[msk] == fill(1, count(msk))
+
+    # bounds checking upon construction; see Julia #4044, #10296
+    A = MMatrix{5,4}(reshape(1:20, 5, 4))
+    sA = view(A, 1:2, 1:3)
+    @test_throws BoundsError view(sA, 1:3, 1:3)
+    @test_throws BoundsError view(sA, 1:2, 1:4)
+    view(sA, 1:2, 1:2)
+    @test_throws BoundsError view(A, 17:23)
+    view(A, 17:20)
+
+    # tests @view (and replace_ref_end!)
+    X = MArray{Tuple{2,3,4}}(reshape(1:24,2,3,4))
+
+    @test isa(@view(X[1:3]), SubArray)
+    @test isa(@view(X[SOneTo(2),1,1]), HybridArrays.SSubArray)
+
+    # Julia issue #18581: slices with OneTo axes can be linear
+    let
+        A18581 = MMatrix{5,5}(rand(5, 5))
+        B18581 = view(A18581, :, axes(A18581,2))
+        @test IndexStyle(B18581) === IndexLinear()
+    end
+
+    # Julia PR #25321
+    # checks that issue in type inference is resolved
+    A = MArray{Tuple{5,5,5,5}}(rand(5,5,5,5))
+    V = view(A, SOneTo(1) ,:, SOneTo(3), :)::HybridArrays.SSubArray
+    @test @inferred(strides(V)) == (1, 5, 25, 125)
+
+    # Julia Issue #26263 — ensure that unaliascopy properly trims the array
+    A = MArray{Tuple{5,5,5,5}}(rand(5,5,5,5))
+    V = view(A, SVector(2,3,4,5), :, SVector(2,3,4,5), SVector(1,3,5))::HybridArrays.SSubArray
+    @test @inferred(Base.unaliascopy(V)) == V == A[2:5, :, 2:5, 1:2:5]
+    @test @inferred(sum(Base.unaliascopy(V))) ≈ sum(V) ≈ sum(A[2:5, :, 2:5, 1:2:5])
+end
