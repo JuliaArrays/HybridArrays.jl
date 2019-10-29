@@ -139,6 +139,7 @@ end
 end
 
 include("abstractarray.jl")
+include("arraymath.jl")
 include("broadcast.jl")
 include("linalg.jl")
 include("ssubarray.jl")

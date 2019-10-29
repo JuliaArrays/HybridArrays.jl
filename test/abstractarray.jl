@@ -34,4 +34,11 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test copy(M).data !== M.data
     end
 
+    @testset "similar" begin
+        M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
+
+        @test isa(@inferred(similar(M)), HybridMatrix{2, StaticArrays.Dynamic(), Int})
+        @test isa(@inferred(similar(M, Float64)), HybridMatrix{2, StaticArrays.Dynamic(), Float64})
+    end
+
 end

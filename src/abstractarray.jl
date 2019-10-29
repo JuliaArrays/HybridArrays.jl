@@ -30,6 +30,8 @@ end
 
 @inline copy(a::HybridArray) = typeof(a)(copy(a.data))
 
+similar(a::HA, ::Type{T2}) where {S, HA<:HybridArray{S}, T2} = HybridArray{S, T2}(similar(a.data, T2))
+
 similar(::Type{<:HybridArray{S,T,N,M}},::Type{T2}) where {S,T,N,M,T2} = HybridArray{S,T2,N,M}(undef)
 similar(::Type{SA},::Type{T},s::Size{S}) where {SA<:HybridArray,T,S} = hybridarray_similar_type(T,s,StaticArrays.length_val(s))(undef)
 hybridarray_similar_type(::Type{T},s::Size{S},::Type{Val{D}}) where {T,S,D} = HybridArray{Tuple{S...},T,D,length(s)}
