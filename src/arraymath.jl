@@ -5,4 +5,8 @@ end
 
 Base.one(A::HA) where {HA<:HybridMatrix} = HA(one(A.data))
 
+@inline function Base.zero(a::HA) where {S, Sel, HA <: SSubArray{S, Sel}}
+    return StaticArrays.zeros(SArray{S, Sel})
+end
+
 Base.fill!(A::HybridArray, x) = fill!(A.data, x)
