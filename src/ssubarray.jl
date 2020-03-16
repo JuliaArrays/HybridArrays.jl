@@ -287,22 +287,3 @@ else
 end
 
 axes(S::SSubArray) = (Base.@_inline_meta; _indices_sub(S.indices...))
-
-
-## Compatibility
-# deprecate?
-function Base.parentdims(s::SSubArray)
-    nd = ndims(s)
-    dimindex = Vector{Int}(undef, nd)
-    sp = strides(s.parent)
-    sv = strides(s)
-    j = 1
-    for i = 1:ndims(s.parent)
-        r = s.indices[i]
-        if j <= nd && (isa(r,AbstractRange) ? sp[i]*step(r) : sp[i]) == sv[j]
-            dimindex[j] = i
-            j += 1
-        end
-    end
-    dimindex
-end
