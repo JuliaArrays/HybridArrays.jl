@@ -287,3 +287,10 @@ else
 end
 
 axes(S::SSubArray) = (Base.@_inline_meta; _indices_sub(S.indices...))
+
+@inline function StaticArrays._construct_sametype(a::Type{<:SSubArray{S}}, elements) where {S}
+    return SArray{S}(elements)
+end
+@inline function StaticArrays._construct_sametype(a::SSubArray, elements)
+    return StaticArrays._construct_sametype(typeof(a), elements)
+end
