@@ -38,7 +38,7 @@ function SSubArray(indexing::Any, ::Val{:dynamic_fixed_false}, parent::Union{Sta
     return SubArray(indexing, parent, indices, idsum)
 end
 
-if VERSION < v"1.1"
+if !isdefined(Base, :__subarray_throw_boundserror)
     @noinline __subarray_throw_boundserror(::Type{T}, parent, indices, offset1, stride1, I) where {T} =
     throw(BoundsError(T(parent, indices, offset1, stride1), I))
 else
