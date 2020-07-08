@@ -262,8 +262,10 @@ Base.unsafe_convert(::Type{Ptr{T}}, V::SSubArray{T,N,P,<:Tuple{Vararg{Base.Range
 Base.pointer(V::FastSSubArray, i::Int) = pointer(V.parent, V.offset1 + V.stride1*i)
 Base.pointer(V::FastContiguousSSubArray, i::Int) = pointer(V.parent, V.offset1 + i)
 Base.pointer(V::SSubArray, i::Int) = Base._pointer(V, i)
-Base._pointer(V::SSubArray{<:Any,1}, i::Int) = pointer(V, (i,))
-Base._pointer(V::SSubArray, i::Int) = pointer(V, Base._ind2sub(axes(V), i))
+if isdefined(Base, :_pointer)
+    Base._pointer(V::SSubArray{<:Any,1}, i::Int) = pointer(V, (i,))
+    Base._pointer(V::SSubArray, i::Int) = pointer(V, Base._ind2sub(axes(V), i))
+end
 
 function Base.pointer(V::SSubArray{T,N,<:Array,<:Tuple{Vararg{Base.RangeIndex}}}, is::Tuple{Vararg{Int}}) where {T,N}
     index = Base.first_index(V)
