@@ -1,6 +1,6 @@
 | Status | Coverage |
 | :----: | :----: |
-| [![Build Status](https://travis-ci.com/mateuszbaran/HybridArrays.jl.svg?branch=master)](https://travis-ci.com/mateuszbaran/HybridArrays.jl) [![Build status](https://ci.appveyor.com/api/projects/status/72nb8pp4pp6e2q7x?svg=true)](https://ci.appveyor.com/project/mateuszbaran/hybridarrays-jl) | [ ![codecov.io](http://codecov.io/github/mateuszbaran/HybridArrays.jl/coverage.svg?branch=master)](http://codecov.io/github/mateuszbaran/HybridArrays.jl?branch=master) |
+| [![CI](https://github.com/mateuszbaran/HybridArrays.jl/workflows/CI/badge.svg)](https://github.com/mateuszbaran/HybridArrays.jl/actions?query=workflow%3ACI+branch%3Amaster) | [ ![codecov.io](http://codecov.io/github/mateuszbaran/HybridArrays.jl/coverage.svg?branch=master)](http://codecov.io/github/mateuszbaran/HybridArrays.jl?branch=master) |
 
 # HybridArrays.jl
 
