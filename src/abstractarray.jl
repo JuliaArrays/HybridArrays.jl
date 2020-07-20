@@ -43,3 +43,6 @@ _h_similar_type(::Type{A},::Type{T},s::Size{S}) where {A<:HybridArray,T,S} = hyb
 
 
 Size(::Type{<:HybridArray{S}}) where {S} = Size(S)
+
+Base.IndexStyle(a::HybridArray) = Base.IndexStyle(a.data)
+Base.IndexStyle(::Type{HA}) where {S,T,N,M,TData,HA<:HybridArray{S,T,N,M,TData}} = Base.IndexStyle(TData)
