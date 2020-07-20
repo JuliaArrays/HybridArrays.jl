@@ -46,6 +46,8 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         MT = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4]')
         @test (@inferred IndexStyle(M)) === IndexLinear()
         @test (@inferred IndexStyle(MT)) === IndexCartesian()
+        @test (@inferred IndexStyle(typeof(M))) === IndexLinear()
+        @test (@inferred IndexStyle(typeof(MT))) === IndexCartesian()
     end
 
 end
