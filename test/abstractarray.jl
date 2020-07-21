@@ -52,8 +52,11 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
 
     @testset "vec" begin
         M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
-        @test vec(M) == [1, 3, 2, 4]
-        @test vec(M) isa Vector{Int}
+        Mv = vec(M)
+        @test Mv == [1, 3, 2, 4]
+        @test Mv isa Vector{Int}
+        Mv[2] = 100
+        @test M[2, 1] == 100
     end
 
 end
