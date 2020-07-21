@@ -24,6 +24,7 @@ using StaticArrays: Dynamic
 import StaticArrays: _setindex!_scalar, Size
 
 using LinearAlgebra
+using ArrayInterface
 
 
 @generated function hasdynamic(::Type{Size}) where Size<:Tuple
@@ -148,5 +149,6 @@ include("convert.jl")
 include("indexing.jl")
 include("linalg.jl")
 include("utils.jl")
+include("array_interface_compat.jl")
 
 end # module
