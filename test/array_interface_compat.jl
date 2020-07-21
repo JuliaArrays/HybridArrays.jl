@@ -7,4 +7,5 @@ using HybridArrays, ArrayInterface, Test, StaticArrays
     @test ArrayInterface.can_setindex(M)
     @test ArrayInterface.parent_type(M) === Matrix{Int}
     @test ArrayInterface.restructure(M, [2, 4, 6, 8]) == HybridMatrix{2, StaticArrays.Dynamic()}([2 6; 4 8])
+    @test isa(ArrayInterface.restructure(M, [2, 4, 6, 8]), HybridMatrix{2, StaticArrays.Dynamic()})
 end
