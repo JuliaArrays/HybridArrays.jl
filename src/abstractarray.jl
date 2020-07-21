@@ -46,3 +46,5 @@ Size(::Type{<:HybridArray{S}}) where {S} = Size(S)
 
 Base.IndexStyle(a::HybridArray) = Base.IndexStyle(a.data)
 Base.IndexStyle(::Type{HA}) where {S,T,N,M,TData,HA<:HybridArray{S,T,N,M,TData}} = Base.IndexStyle(TData)
+
+Base.vec(a::HybridArray) = vec(a.data)

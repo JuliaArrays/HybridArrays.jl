@@ -50,4 +50,10 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test (@inferred IndexStyle(typeof(MT))) === IndexCartesian()
     end
 
+    @testset "vec" begin
+        M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
+        @test vec(M) == [1, 3, 2, 4]
+        @test vec(M) isa Vector{Int}
+    end
+
 end
