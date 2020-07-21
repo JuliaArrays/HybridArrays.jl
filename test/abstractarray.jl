@@ -41,4 +41,22 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test isa(@inferred(similar(M, Float64)), HybridMatrix{2, StaticArrays.Dynamic(), Float64})
     end
 
+    @testset "IndexStyle" begin
+        M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
+        MT = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4]')
+        @test (@inferred IndexStyle(M)) === IndexLinear()
+        @test (@inferred IndexStyle(MT)) === IndexCartesian()
+        @test (@inferred IndexStyle(typeof(M))) === IndexLinear()
+        @test (@inferred IndexStyle(typeof(MT))) === IndexCartesian()
+    end
+
+    @testset "vec" begin
+        M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
+        Mv = vec(M)
+        @test Mv == [1, 3, 2, 4]
+        @test Mv isa Vector{Int}
+        Mv[2] = 100
+        @test M[2, 1] == 100
+    end
+
 end
