@@ -13,8 +13,12 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         # TODO?
     end
 
-    @testset "convertsions" begin
-        M = HybridMatrix{2, StaticArrays.Dynamic()}([1 2 3; 4 5 6])
+    @testset "convert" begin
+        MM = [1 2 3; 4 5 6]
+        M = HybridMatrix{2, StaticArrays.Dynamic()}(MM)
+        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()}}, MM)).data == M
+        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Int}, MM)).data == M
+        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64}, MM)).data == M
         @test convert(Array, M) === M.data
         @test_broken convert(Matrix, M) === M.data
         @test convert(Matrix{Int}, M) === M.data

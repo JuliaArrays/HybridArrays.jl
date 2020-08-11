@@ -2,7 +2,7 @@
 Base.@propagate_inbounds (::Type{HybridArray{S,T,N,M,TData}})(a::AbstractArray) where {S,T,N,M,TData<:AbstractArray{<:Any,M}} = convert(HybridArray{S,T,N,M,TData}, a)
 Base.@propagate_inbounds (::Type{HybridArray{S,T,N,M}})(a::AbstractArray) where {S,T,N,M} = convert(HybridArray{S,T,N,M}, a)
 Base.@propagate_inbounds (::Type{HybridArray{S,T,N}})(a::AbstractArray) where {S,T,N} = convert(HybridArray{S,T,N}, a)
-Base.@propagate_inbounds (::Type{HybridArray{S,T}})(a::AbstractArray) where {S,T} = convert(HybridArray{S,T,StaticArrays.tuple_length(S)}, a)
+Base.@propagate_inbounds (::Type{HybridArray{S,T}})(a::AbstractArray) where {S,T} = convert(HybridArray{S,T}, a)
 
 # Overide some problematic default behaviour
 @inline convert(::Type{SA}, sa::HybridArray) where {SA<:HybridArray} = SA(sa.data)
@@ -52,7 +52,15 @@ end
     return HybridArray{S,T,N,M,typeof(as)}(as)
 end
 
+@inline function convert(::Type{HybridArray{S,T}}, a::AbstractArray) where {S,T}
+    return convert(HybridArray{S,T,StaticArrays.tuple_length(S)}, a)
+end
+
 @inline function convert(::Type{HybridArray{S,T,N}}, a::TData) where {S,T,N,M,TData<:AbstractArray{T,M}}
     check_compatible_sizes(S, size(a))
     return HybridArray{S,T,N,M,typeof(a)}(a)
+end
+
+@inline function convert(::Type{HybridArray{S}}, a::TData) where {S,T,M,TData<:AbstractArray{T,M}}
+    convert(HybridArray{S,T}, a)
 end
