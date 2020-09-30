@@ -147,14 +147,10 @@ end
         if i == Int
         elseif i <: StaticVector
             push!(os, i.parameters[1].parameters[1])
-        elseif i <: Base.Slice{<:StaticVector}
-            push!(os, i.parameters[1].parameters[1].parameters[1])
-        elseif i == Colon
+        elseif i == Colon || i <: Base.Slice
             push!(os, s)
         elseif i <: SOneTo
             push!(os, i.parameters[1])
-        elseif i <: Base.Slice{<:SOneTo}
-            push!(os, i.parameters[1].parameters[1])
         elseif i <: Base.OneTo || i <: AbstractArray
             push!(os, Dynamic())
         else
@@ -281,4 +277,21 @@ end
             end
         end
     end
+end
+
+@inline function _view_hybrid(a::HybridArray{S}, ::Val{:dynamic_fixed_true}, inner_view, indices...) where {S}
+    new_size = new_out_size(S, indices...)
+    return SizedArray{new_size}(inner_view)
+end
+
+@inline function _view_hybrid(a::HybridArray, ::Val{:dynamic_fixed_false}, inner_view, indices...)
+    return inner_view
+end
+
+@inline function Base.view(
+    a::HybridArray{S},
+    indices...,
+) where {S}
+    inner_view = invoke(view, Tuple{AbstractArray, typeof(indices).parameters...}, a, indices...)
+    return _view_hybrid(a, all_dynamic_fixed_val(S, indices...), inner_view, indices...)
 end

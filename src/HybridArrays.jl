@@ -140,8 +140,6 @@ HybridMatrix{S1,S2,T,M} = HybridArray{Tuple{S1,S2},T,2,M}
 
 export HybridArray, HybridMatrix, HybridVector
 
-include("ssubarray.jl")
-
 include("abstractarray.jl")
 include("arraymath.jl")
 include("broadcast.jl")
