@@ -35,6 +35,21 @@ _totally_linear(inds::Type{Int}...) = true
 _totally_linear(inds::Type{Colon}...) = true
 _totally_linear(i1::Type{Colon}, inds...) = _totally_linear(inds...)
 
+function new_out_size_nongen(::Type{Size}, inds...) where Size
+    os = []
+    map(Size.parameters, inds) do s, i
+        if i == Int
+        elseif i <: StaticVector
+            push!(os, i.parameters[1].parameters[1])
+        elseif i == Colon
+            push!(os, s)
+        else
+            error("Unknown index type: $i")
+        end
+    end
+    return tuple(os...)
+end
+
 """
     _get_linear_inds(S, inds...)
 
@@ -120,21 +135,6 @@ end
             SArray{$Tnewsize,$T}(tuple($(exprs...)))
         end
     end
-end
-
-function new_out_size_nongen(::Type{Size}, inds...) where Size
-    os = []
-    map(Size.parameters, inds) do s, i
-        if i == Int
-        elseif i <: StaticVector
-            push!(os, i.parameters[1].parameters[1])
-        elseif i == Colon
-            push!(os, s)
-        else
-            error("Unknown index type: $i")
-        end
-    end
-    return tuple(os...)
 end
 
 function new_out_size(S::Type{Size}, inds::StaticArrays.StaticIndexing...) where Size
