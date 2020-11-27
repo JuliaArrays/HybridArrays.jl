@@ -1,16 +1,20 @@
 
-function StaticArrays._one(s::Size, ::Type{SM}) where {Sel, N, SM <: HybridArrays.SSubArray{Tuple{N,N}, Sel}}
-    return StaticArrays._one(s, SMatrix{N,N,Sel})
-end
-
 Base.one(A::HA) where {HA<:HybridMatrix} = HA(one(A.data))
 
-@inline function Base.zero(a::HA) where {S, Sel, HA <: SSubArray{S, Sel}}
-    return StaticArrays.zeros(SArray{S, Sel})
+# This should make one(sized subarray) return SArray
+@inline function StaticArrays._construct_sametype(a::Type{<:SSubArray{Tuple{S,S},T}}, elements) where {S,T}
+    return SMatrix{S,S,T}(elements)
+end
+@inline function StaticArrays._construct_sametype(a::SSubArray{Tuple{S,S},T}, elements) where {S,T}
+    return SMatrix{S,S,T}(elements)
 end
 
 Base.fill!(A::HybridArray, x) = fill!(A.data, x)
 
-function Base.zero(a::HybridArray{S}) where {S}
+@inline function Base.zero(a::HybridArray{S}) where {S}
     return HybridArray{S}(zero(a.data))
+end
+
+@inline function Base.zero(a::SSubArray{S,T}) where {S,T}
+    return StaticArrays.zeros(SArray{S,T})
 end

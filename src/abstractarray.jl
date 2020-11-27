@@ -48,3 +48,5 @@ Base.IndexStyle(a::HybridArray) = Base.IndexStyle(a.data)
 Base.IndexStyle(::Type{HA}) where {S,T,N,M,TData,HA<:HybridArray{S,T,N,M,TData}} = Base.IndexStyle(TData)
 
 Base.vec(a::HybridArray) = vec(a.data)
+
+StaticArrays.similar_type(::Type{<:SSubArray},::Type{T},s::Size{S}) where {S,T} = StaticArrays.default_similar_type(T,s,StaticArrays.length_val(s))

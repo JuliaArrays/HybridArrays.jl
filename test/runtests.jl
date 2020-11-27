@@ -2,6 +2,8 @@ using HybridArrays
 using StaticArrays
 using Test
 
+@test length(Test.detect_ambiguities(HybridArrays)) == 0
+
 @testset "Inner Constructors" begin
     @test HybridArray{Tuple{2}, Int, 1, 1, Vector{Int}}((3, 4)).data == [3, 4]
     @test HybridArray{Tuple{2}, Int, 1}([3, 4]).data == [3, 4]
@@ -136,6 +138,9 @@ end
     @test_throws DimensionMismatch (D[:,2,3,4] = @SVector [10, 11, 11])
     @test_throws DimensionMismatch (D[:,2,3,4] = [10, 11, 11])
     @test_throws DimensionMismatch (B[1,2,:] = [10, 11])
+
+    @test_throws ErrorException HybridArray.all_dynamic_fixed_val(typeof(B))
+    @test HybridArrays.all_dynamic_fixed_val(Tuple{}) === Val(:dynamic_fixed_true)
 end
 
 include("abstractarray.jl")
@@ -143,3 +148,6 @@ include("arraymath.jl")
 include("broadcast.jl")
 include("linalg.jl")
 include("ssubarray.jl")
+if VERSION >= v"1.2"
+    include("array_interface_compat.jl")
+end
