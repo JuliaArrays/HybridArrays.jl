@@ -24,7 +24,9 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2,2}, MM)).data == M
         @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2,2,Matrix{Float64}}, MM)).data == M
         @test convert(typeof(M), M) === M
-        @test convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64}, M) == M
+        if VERSION >= v"1.1"
+            @test convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64}, M) == M
+        end
         @test convert(Array, M) === M.data
         @test convert(Array{Int}, M) === M.data
         @test convert(Matrix, M) === M.data
@@ -75,4 +77,5 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test_throws TypeError HybridArrays.new_out_size_nongen(Size{Tuple{1,2}}, 'a')
     end
 
+    @test HybridArrays._totally_linear() === true
 end

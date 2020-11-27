@@ -36,6 +36,13 @@ using Requires
     return false
 end
 
+function all_dynamic_fixed_val(::Type{Tuple{}})
+    return Val(:dynamic_fixed_true)
+end
+function all_dynamic_fixed_val(::Type{Size}) where Size<:Tuple
+    return error("No indices given for size $Size")
+end
+
 function all_dynamic_fixed_val(::Type{Size}, inds::StaticArrays.StaticIndexing{<:Union{Int, AbstractArray, Colon}}...) where Size<:Tuple
     return all_dynamic_fixed_val(Size, map(StaticArrays.unwrap, inds)...)
 end

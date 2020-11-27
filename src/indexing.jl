@@ -30,6 +30,7 @@ function _get_indices(i::Tuple, j::Int, i1::Type{Colon}, inds...)
     return (i[1], _get_indices(i[2:end], j+1, inds...)...)
 end
 
+_totally_linear() = true
 _totally_linear(inds...) = false
 _totally_linear(inds::Type{Int}...) = true
 _totally_linear(inds::Type{Colon}...) = true
