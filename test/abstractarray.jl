@@ -7,7 +7,8 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test length(M) == 6
         @test size(M) == (2, 3)
         @test Base.isassigned(M, 2, 2) == true
-        @test Size(M) == Size(Tuple{2, StaticArrays.Dynamic()})
+        @test (@inferred Size(M)) == Size(Tuple{2, StaticArrays.Dynamic()})
+        @test (@inferred Size(typeof(M))) == Size(Tuple{2, StaticArrays.Dynamic()})
     end
 
     @testset "reshape" begin
