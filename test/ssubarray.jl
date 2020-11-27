@@ -9,4 +9,5 @@ using Test, Random, HybridArrays, StaticArrays
 
     @test (@inferred Av[:,:,1]) === SA[0.0 0.0; 0.0 0.0]
     @test (@inferred Av[:,SOneTo(2),1]) === SA[0.0 0.0; 0.0 0.0]
+    @test StaticArrays.similar_type(Av) === SArray{Tuple{2,2,3},Float64,3,12}
 end

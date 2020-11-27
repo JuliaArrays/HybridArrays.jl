@@ -16,6 +16,7 @@ Base.@propagate_inbounds (::Type{HybridArray{S,T}})(a::AbstractArray) where {S,T
 @inline convert(::Type{Array}, sa::HybridArray) = convert(Array, sa.data)
 @inline convert(::Type{Array{T}}, sa::HybridArray{S,T}) where {T,S} = convert(Array, sa.data)
 @inline convert(::Type{Array{T,N}}, sa::HybridArray{S,T,N}) where {T,S,N} = convert(Array, sa.data)
+@inline convert(::Type{Array{T,N} where T}, sa::HybridArray{S}) where {S,N} = convert(Array, sa.data)
 
 function check_compatible_sizes(::Type{S}, a::NTuple{N,Int}) where {S,N}
     st = size_to_tuple(S)

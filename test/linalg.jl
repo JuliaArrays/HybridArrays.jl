@@ -36,6 +36,12 @@ using Test
         @test @inferred(vcat(m1, m2)) == vcat(a1, a2)
         @test @inferred(hcat(m1, m2)) == hcat(a1, a2)
         @test isa(vcat(m1, m2), HybridMatrix{4,StaticArrays.Dynamic()})
+        @test isa(vcat(m1, m2, m2), HybridMatrix{6,StaticArrays.Dynamic()})
         @test isa(hcat(m1, m2), HybridMatrix{2,StaticArrays.Dynamic()})
+        @test isa(hcat(m1, m2, m2), HybridMatrix{2,StaticArrays.Dynamic()})
+        @test isa(vcat(HybridVector{2}([1, 2]), HybridVector{3}([1, 2, 3])), HybridVector{5, Int})
+
+        @test_throws DimensionMismatch hcat(HybridVector{2}([1, 2]), HybridVector{3}([1, 2, 3]))
+        @test_throws ArgumentError vcat(m1, hcat(m1, m2))
     end
 end

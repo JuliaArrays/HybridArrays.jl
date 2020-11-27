@@ -7,6 +7,7 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test length(M) == 6
         @test size(M) == (2, 3)
         @test Base.isassigned(M, 2, 2) == true
+        @test Size(M) == Size(Tuple{2, StaticArrays.Dynamic()})
     end
 
     @testset "reshape" begin
@@ -19,8 +20,14 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()}}, MM)).data == M
         @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Int}, MM)).data == M
         @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64}, MM)).data == M
+        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2}, MM)).data == M
+        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2,2}, MM)).data == M
+        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2,2,Matrix{Float64}}, MM)).data == M
+        @test convert(typeof(M), M) === M
+        @test convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64}, M) == M
         @test convert(Array, M) === M.data
-        @test_broken convert(Matrix, M) === M.data
+        @test convert(Array{Int}, M) === M.data
+        @test convert(Matrix, M) === M.data
         @test convert(Matrix{Int}, M) === M.data
 
         @test Array(M) == M
@@ -43,6 +50,7 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
 
         @test isa(@inferred(similar(M)), HybridMatrix{2, StaticArrays.Dynamic(), Int})
         @test isa(@inferred(similar(M, Float64)), HybridMatrix{2, StaticArrays.Dynamic(), Float64})
+        @test isa(@inferred(similar(M, Float64, Size(Tuple{3, 3}))), HybridMatrix{3, 3, Float64})
     end
 
     @testset "IndexStyle" begin
@@ -61,6 +69,10 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test Mv isa Vector{Int}
         Mv[2] = 100
         @test M[2, 1] == 100
+    end
+
+    @testset "errors" begin
+        @test_throws TypeError HybridArrays.new_out_size_nongen(Size{Tuple{1,2}}, 'a')
     end
 
 end

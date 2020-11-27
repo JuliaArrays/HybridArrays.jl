@@ -54,7 +54,7 @@ const HybridVecOrMatLike{T} = Union{HybridVector{<:Any, T}, HybridMatrixLike{T}}
 end
 
 @inline hcat(a::HybridVecOrMatLike, b::HybridVecOrMatLike) = _hcat(Size(a), Size(b), a, b)
-@inline hcat(a::HybridVecOrMatLike, b::HybridVecOrMatLike, c::HybridVecOrMatLike...) = hcat(hcat(a,b), hcat(c...))
+@inline hcat(a::HybridVecOrMatLike, b::HybridVecOrMatLike, c::HybridVecOrMatLike...) = hcat(hcat(a,b), c...)
 
 # used in _vcat and _hcat
 @inline +(::Dynamic, ::Dynamic) = Dynamic()
