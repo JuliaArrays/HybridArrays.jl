@@ -65,3 +65,5 @@ end
 @inline function convert(::Type{HybridArray{S}}, a::TData) where {S,T,M,TData<:AbstractArray{T,M}}
     convert(HybridArray{S,T}, a)
 end
+
+@inline Base.unsafe_convert(::Type{Ptr{T}}, A::HybridArray{S,T}) where {S,T} = pointer(A.data)
