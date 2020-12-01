@@ -1,9 +1,13 @@
 
 Base.dataids(sa::HybridArray) = Base.dataids(sa.data)
 
-@inline size(sa::HybridArray{S}) where S = size(sa.data)
+@inline size(sa::HybridArray{S,T,N,N}) where {S,T,N} = size(sa.data)
 
 @inline length(sa::HybridArray) = length(sa.data)
+
+@inline strides(sa::HybridArray{S,T,N,N,Array{T,N}}) where {S,T,N} = strides(sa.data)
+
+@inline pointer(sa::HybridArray) = pointer(sa.data)
 
 @generated function _sized_abstract_array_axes(::Type{S}, ax::Tuple) where S<:Tuple
     exprs = Any[]

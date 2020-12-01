@@ -78,5 +78,24 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test_throws TypeError HybridArrays.new_out_size_nongen(Size{Tuple{1,2}}, 'a')
     end
 
+    @testset "strides" begin
+        M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
+
+        @test strides(M) == strides(M.data)
+    end
+
+    @testset "pointer" begin
+        M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
+        MT = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4]')
+
+        @test pointer(M) == pointer(M.data)
+        @test pointer(MT) == pointer(MT.data)
+    end
+
+    @testset "unsafe_convert" begin
+        M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
+        @test Base.unsafe_convert(Ptr{Int}, M) === pointer(M.data)
+    end
+
     @test HybridArrays._totally_linear() === true
 end
