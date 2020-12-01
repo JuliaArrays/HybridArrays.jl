@@ -19,7 +19,7 @@ function ArrayInterface.strides(x::HybridArray)
     return ArrayInterface.strides(x.data)
 end
 
-@generated function ArrayInterface.strides(x::HybridArray{S,T,N,M,Array{T,M}}) where {S,T,N,M}
+@generated function ArrayInterface.strides(x::HybridArray{S,T,N,N,Array{T,N}}) where {S,T,N}
     collected_strides = []
     i = 1
     for (argnum, Sarg) in enumerate(S.parameters)
