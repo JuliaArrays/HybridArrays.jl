@@ -5,7 +5,7 @@ Base.dataids(sa::HybridArray) = Base.dataids(sa.data)
 
 @inline length(sa::HybridArray) = length(sa.data)
 
-@inline strides(sa::HybridArray{S,T,N,N,Array{T,N}}) where {S,T,N} = strides(sa.data)
+@inline strides(sa::HybridArray{S,T,N,N}) where {S,T,N} = strides(sa.data)
 
 @inline pointer(sa::HybridArray) = pointer(sa.data)
 
