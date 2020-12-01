@@ -89,7 +89,10 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         MT = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4]')
 
         @test pointer(M) == pointer(M.data)
-        @test pointer(MT) == pointer(MT.data)
+        if VERSION >= v"1.5"
+            # pointer on Adjoint is not available on earilier versions of Julia
+            @test pointer(MT) == pointer(MT.data)
+        end
     end
 
     @testset "unsafe_convert" begin
