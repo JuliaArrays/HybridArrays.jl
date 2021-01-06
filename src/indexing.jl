@@ -41,7 +41,7 @@ function new_out_size_nongen(::Type{Size}, inds...) where Size
     map(Size.parameters, inds) do s, i
         if i == Int
         elseif i <: StaticVector
-            push!(os, i.parameters[1].parameters[1])
+            push!(os, length(i))
         elseif i == Colon
             push!(os, s)
         else
@@ -142,12 +142,17 @@ function new_out_size(S::Type{Size}, inds::StaticArrays.StaticIndexing...) where
     return new_out_size(S, map(StaticArrays.unwrap, inds)...)
 end
 
+
+# _get_static_vector_length is used in a generated function so using a generic function
+# may not be a good idea
+_get_static_vector_length(::Type{<:StaticVector{N}}) where {N} = N
+
 @generated function new_out_size(::Type{Size}, inds...) where Size
     os = []
     map(Size.parameters, inds) do s, i
         if i == Int
         elseif i <: StaticVector
-            push!(os, i.parameters[1].parameters[1])
+            push!(os, _get_static_vector_length(i))
         elseif i == Colon || i <: Base.Slice
             push!(os, s)
         elseif i <: SOneTo
@@ -285,8 +290,9 @@ end
     return SizedArray{new_size}(inner_view)
 end
 
-@inline function _view_hybrid(a::HybridArray, ::Val{:dynamic_fixed_false}, inner_view, indices...)
-    return inner_view
+@inline function _view_hybrid(a::HybridArray{S}, ::Val{:dynamic_fixed_false}, inner_view, indices...) where {S}
+    new_size = new_out_size(S, indices...)
+    return HybridArray{new_size}(inner_view)
 end
 
 @inline function Base.view(
