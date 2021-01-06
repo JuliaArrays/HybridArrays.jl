@@ -10,4 +10,10 @@ using Test, Random, HybridArrays, StaticArrays
     @test (@inferred Av[:,:,1]) === SA[0.0 0.0; 0.0 0.0]
     @test (@inferred Av[:,SOneTo(2),1]) === SA[0.0 0.0; 0.0 0.0]
     @test StaticArrays.similar_type(Av) === SArray{Tuple{2,2,3},Float64,3,12}
+
+    # views that leave dynamically sized axes should return HybridArray (see issue #31)
+    B = HybridArray{Tuple{2,5,StaticArrays.Dynamic()}}(randn(2, 5, 3))
+    @test isa((@inferred view(B, :, StaticArrays.SUnitRange(2, 4), :)), HybridArray{Tuple{2,3,StaticArrays.Dynamic()},Float64,3,3,<:SubArray})
+    Bv = view(B, :, StaticArrays.SUnitRange(2, 4), :)
+    @test Bv == B[:, StaticArrays.SUnitRange(2, 4), :]
 end
