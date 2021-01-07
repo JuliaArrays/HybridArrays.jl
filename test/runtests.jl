@@ -127,6 +127,8 @@ end
     @test B[:,2,:] == @SMatrix [1 2 3 4; 5 6 7 8]
     B[:,2,:] = [11 12 13 14; 15 16 17 18]
     @test B[:,2,:] == [11 12 13 14; 15 16 17 18]
+    B[1,2,:] = @SVector [10, 11, 12, 13]
+    @test B[1,2,:] == @SVector [10, 11, 12, 13]
 
     D[:,2,3,4] = @SVector [10, 11]
     @test D[:,2,3,4] == @SVector [10, 11]
@@ -134,6 +136,10 @@ end
     @test D[:,:,1,2] == @SMatrix [1 2 3; 4 5 6]
     D[1,2,:,1] = [10, 11, 12, 13]
     @test D[1,2,:,1] == @SVector [10, 11, 12, 13]
+
+    E = HybridArray{Tuple{}}(fill(10))
+    E[] = 12
+    @test E[] == 12
 
     @test_throws DimensionMismatch (D[:,2,3,4] = @SVector [10, 11, 11])
     @test_throws DimensionMismatch (D[:,2,3,4] = [10, 11, 11])
