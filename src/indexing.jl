@@ -246,7 +246,7 @@ end
 
         if v <: StaticArray
             return quote
-                @_propagate_inbounds_meta
+                Base.@_propagate_inbounds_meta
                 sadata = sa.data
                 @inbounds $(Expr(:block, exprs...))
             end
