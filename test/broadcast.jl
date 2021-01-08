@@ -46,8 +46,11 @@ Broadcast.broadcastable(x::ScalarTest) = Ref(x)
         @test @inferred(testinf(m, v)) == @SMatrix [1.0 0.5; 0.75 0.25]
 
         # mutating
-        m .+= v
-        @test m == [2 3; 7 8]
+        m .+= v .+ [1, 2]
+        @test m == [3 4; 9 10]
+        m = HybridMatrix{2,StaticArrays.Dynamic()}([1 2; 3 4])
+        m .+= v .+ SA[1, 2]
+        @test m == [3 4; 9 10]
     end
 
     @testset "2x2 HybridMatrix with 1x2 HybridMatrix" begin
