@@ -242,7 +242,7 @@ end
         exprs = similar(indices, Expr)
         for current_ind ∈ indices
             cinds = _get_indices(current_ind.I, 1, inds...)
-            exprs[current_ind.I...] = :(setindex!(sadata, v[$(cinds...)], $(cinds...)))
+            exprs[current_ind.I...] = :(setindex!(sadata, v[$(current_ind.I...)], $(cinds...)))
         end
 
         if v <: StaticArray
