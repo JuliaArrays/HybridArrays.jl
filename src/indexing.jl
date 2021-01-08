@@ -181,7 +181,7 @@ end
 @generated function _setindex!_scalar(::Size{S}, a::HybridArray, value, inds::Int...) where S
     if length(inds) == 0
         return quote
-            @_propagate_inbounds_meta
+            Base.@_propagate_inbounds_meta
             a[1] = value
         end
     end
@@ -194,7 +194,8 @@ end
         else
             ind_expr = :($ind_expr + $stride * (inds[$i] - 1))
         end
-        if isa(S[i], StaticArrays.Dynamic)
+        # it's possible that one of the trailing indices is an additional 1.
+        if length(S) < i || isa(S[i], StaticArrays.Dynamic)
             stride = :($stride * size(a.data, $i))
         else
             stride = :($stride * $(S[i]))
@@ -241,7 +242,7 @@ end
         exprs = similar(indices, Expr)
         for current_ind ∈ indices
             cinds = _get_indices(current_ind.I, 1, inds...)
-            exprs[current_ind.I...] = :(setindex!(sadata, v[$(cinds...)], $(cinds...)))
+            exprs[current_ind.I...] = :(setindex!(sadata, v[$(current_ind.I...)], $(cinds...)))
         end
 
         if v <: StaticArray
