@@ -150,7 +150,7 @@ end
     @test_throws DimensionMismatch (B[1,2,:] = [10, 11])
 
     @test_throws ErrorException HybridArray.all_dynamic_fixed_val(typeof(B))
-    @test HybridArrays.all_dynamic_fixed_val(Tuple{}) === Val(:dynamic_fixed_true)
+    @test HybridArrays.all_dynamic_fixed_val(E) === Val(:dynamic_fixed_true)
 end
 
 include("abstractarray.jl")
@@ -158,6 +158,7 @@ include("arraymath.jl")
 include("broadcast.jl")
 include("linalg.jl")
 include("ssubarray.jl")
+include("ellipsis_notation_compat.jl")
 if VERSION >= v"1.2"
     include("array_interface_compat.jl")
 end

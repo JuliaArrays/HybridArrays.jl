@@ -38,43 +38,6 @@ using Requires
     return false
 end
 
-function all_dynamic_fixed_val(::Type{Tuple{}})
-    return Val(:dynamic_fixed_true)
-end
-function all_dynamic_fixed_val(::Type{Size}) where Size<:Tuple
-    return error("No indices given for size $Size")
-end
-
-function all_dynamic_fixed_val(::Type{Size}, inds::StaticArrays.StaticIndexing{<:Union{Int, AbstractArray, Colon}}...) where Size<:Tuple
-    return all_dynamic_fixed_val(Size, map(StaticArrays.unwrap, inds)...)
-end
-
-@generated function all_dynamic_fixed_val(::Type{Size}, inds::Union{Int, AbstractArray, Colon}...) where Size<:Tuple
-    all_fixed = true
-    for (i, param) in enumerate(Size.parameters)
-
-        destatizing = (inds[i] <: AbstractArray && !(
-            inds[i] <: StaticArray ||
-            inds[i] <: Base.Slice{<:StaticArray} ||
-            inds[i] <: SOneTo ||
-            inds[i] <: Base.Slice{<:SOneTo}))
-
-        nonstatizing = inds[i] == Colon || destatizing
-
-        if destatizing || (isa(param, Dynamic) && nonstatizing)
-            all_fixed = false
-            break
-        end
-
-    end
-
-    if all_fixed
-        return Val(:dynamic_fixed_true)
-    else
-        return Val(:dynamic_fixed_false)
-    end
-end
-
 @generated function tuple_nodynamic_prod(::Type{Size}) where Size<:Tuple
     i = 1
     for s ∈ Size.parameters
@@ -148,6 +111,48 @@ HybridMatrix{S1,S2,T,M} = HybridArray{Tuple{S1,S2},T,2,M}
 @inline HybridMatrix{S1,S2}(x::NTuple{L,T}) where {S1,S2,T,L} = HybridArray{Tuple{S1,S2},T,2,2,Matrix{T}}(x)
 
 export HybridArray, HybridMatrix, HybridVector
+
+function all_dynamic_fixed_val(::HybridArray{Tuple{}})
+    return Val(:dynamic_fixed_true)
+end
+function all_dynamic_fixed_val(::HybridArray{Size}) where Size<:Tuple
+    return error("No indices given for size $Size")
+end
+
+function all_dynamic_fixed_val(a::HybridArray{Size}, inds::StaticArrays.StaticIndexing{<:Union{Int, AbstractArray, Colon}}...) where Size<:Tuple
+    return all_dynamic_fixed_val(a, map(StaticArrays.unwrap, inds)...)
+end
+
+@generated function all_dynamic_fixed_val(::HybridArray{Size}, inds::Union{Int, AbstractArray, Colon}...) where Size<:Tuple
+    all_fixed = true
+    for (i, param) in enumerate(Size.parameters)
+
+        destatizing = (inds[i] <: AbstractArray && !(
+            inds[i] <: StaticArray ||
+            inds[i] <: Base.Slice{<:StaticArray} ||
+            inds[i] <: SOneTo ||
+            inds[i] <: Base.Slice{<:SOneTo}))
+
+        nonstatizing = (inds[i] == Colon || inds[i] == Base.Slice) || destatizing
+
+        if destatizing || (isa(param, Dynamic) && nonstatizing)
+            all_fixed = false
+            break
+        end
+
+    end
+
+    if all_fixed
+        return Val(:dynamic_fixed_true)
+    else
+        return Val(:dynamic_fixed_false)
+    end
+end
+
+# general fallback allowing, e.g. `..` from EllipsisNotation.jl
+function all_dynamic_fixed_val(a::HybridArray{Size}, inds...) where Size<:Tuple
+    return all_dynamic_fixed_val(a, to_indices(a, inds)...)
+end
 
 include("SSubArray.jl")
 
