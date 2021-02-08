@@ -49,7 +49,7 @@ const HybridVecOrMatLike{T} = Union{HybridVector{<:Any, T}, HybridMatrixLike{T}}
 
     return quote
         Base.@_inline_meta
-        @inbounds return _h_similar_type($a, promote_type(eltype(a), eltype(b)), Size($Snew))(vcat(a.data, b.data))
+        @inbounds return _h_similar_type($a, promote_type(eltype(a), eltype(b)), Size($Snew))(vcat(parent(a), parent(b)))
     end
 end
 
@@ -68,6 +68,6 @@ end
 
     return quote
         Base.@_inline_meta
-        return _h_similar_type($a, promote_type(eltype(a), eltype(b)), Size($Snew))(hcat(a.data, b.data))
+        return _h_similar_type($a, promote_type(eltype(a), eltype(b)), Size($Snew))(hcat(parent(a), parent(b)))
     end
 end

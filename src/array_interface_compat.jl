@@ -16,7 +16,7 @@ function ArrayInterface.restructure(x::HybridArray{S}, y) where {S}
 end
 
 function ArrayInterface.strides(x::HybridArray)
-    return ArrayInterface.strides(x.data)
+    return ArrayInterface.strides(parent(x))
 end
 
 @generated function ArrayInterface.strides(x::HybridArray{S,T,N,N,Array{T,N}}) where {S,T,N}
@@ -35,7 +35,7 @@ end
         end
     end
     return quote
-        datastrides = strides(x.data)
+        datastrides = strides(parent(x))
         return tuple($(collected_strides...))
     end
 end
@@ -50,7 +50,7 @@ end
         end
     end
     return quote
-        datasize = ArrayInterface.size(x.data)
+        datasize = ArrayInterface.size(parent(x))
         return tuple($(collected_sizes...))
     end
 end

@@ -5,11 +5,11 @@ using Test
 @test length(Test.detect_ambiguities(HybridArrays)) == 0
 
 @testset "Inner Constructors" begin
-    @test HybridArray{Tuple{2}, Int, 1, 1, Vector{Int}}((3, 4)).data == [3, 4]
-    @test HybridArray{Tuple{2}, Int, 1}([3, 4]).data == [3, 4]
-    @test HybridArray{Tuple{2, 2}, Int, 2}(collect(3:6)).data == collect(3:6)
-    @test size(HybridArray{Tuple{4, 5}, Int, 2}(undef).data) == (4, 5)
-    @test size(HybridArray{Tuple{4, 5}, Int}(undef).data) == (4, 5)
+    @test parent(HybridArray{Tuple{2}, Int, 1, 1, Vector{Int}}((3, 4))) == [3, 4]
+    @test parent(HybridArray{Tuple{2}, Int, 1}([3, 4])) == [3, 4]
+    @test parent(HybridArray{Tuple{2, 2}, Int, 2}(collect(3:6))) == collect(3:6)
+    @test size(parent(HybridArray{Tuple{4, 5}, Int, 2}(undef))) == (4, 5)
+    @test size(parent(HybridArray{Tuple{4, 5}, Int}(undef))) == (4, 5)
 
     # Bad input
     @test_throws Exception SArray{Tuple{1},Int,1}([2 3])
@@ -61,7 +61,7 @@ end
 @testset "setindex" begin
     sa = HybridArray{Tuple{2}, Int, 1}([3, 4])
     sa[1] = 2
-    @test sa.data == [2, 4]
+    @test parent(sa) == [2, 4]
 end
 
 @testset "aliasing" begin

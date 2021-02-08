@@ -1,5 +1,5 @@
 
-Base.one(A::HA) where {HA<:HybridMatrix} = HA(one(A.data))
+Base.one(A::HA) where {HA<:HybridMatrix} = HA(one(parent(A)))
 
 # This should make one(sized subarray) return SArray
 @inline function StaticArrays._construct_sametype(a::Type{<:SSubArray{Tuple{S,S},T}}, elements) where {S,T}
@@ -9,10 +9,10 @@ end
     return SMatrix{S,S,T}(elements)
 end
 
-Base.fill!(A::HybridArray, x) = fill!(A.data, x)
+Base.fill!(A::HybridArray, x) = fill!(parent(A), x)
 
 @inline function Base.zero(a::HybridArray{S}) where {S}
-    return HybridArray{S}(zero(a.data))
+    return HybridArray{S}(zero(parent(a)))
 end
 
 @inline function Base.zero(a::SSubArray{S,T}) where {S,T}

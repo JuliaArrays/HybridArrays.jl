@@ -1,13 +1,17 @@
 
-Base.dataids(sa::HybridArray) = Base.dataids(sa.data)
+@inline Base.parent(sa::HybridArray) = sa.data
 
-@inline size(sa::HybridArray{S,T,N,N}) where {S,T,N} = size(sa.data)
+Base.dataids(sa::HybridArray) = Base.dataids(parent(sa))
 
-@inline length(sa::HybridArray) = length(sa.data)
+@inline Base.elsize(sa::HybridArray) = Base.elsize(parent(sa))
 
-@inline strides(sa::HybridArray{S,T,N,N}) where {S,T,N} = strides(sa.data)
+@inline size(sa::HybridArray{S,T,N,N}) where {S,T,N} = size(parent(sa))
 
-@inline pointer(sa::HybridArray) = pointer(sa.data)
+@inline length(sa::HybridArray) = length(parent(sa))
+
+@inline strides(sa::HybridArray{S,T,N,N}) where {S,T,N} = strides(parent(sa))
+
+@inline pointer(sa::HybridArray) = pointer(parent(sa))
 
 @generated function _sized_abstract_array_axes(::Type{S}, ax::Tuple) where S<:Tuple
     exprs = Any[]
@@ -22,7 +26,7 @@ Base.dataids(sa::HybridArray) = Base.dataids(sa.data)
 end
 
 function axes(sa::HybridArray{S}) where S
-    ax = axes(sa.data)
+    ax = axes(parent(sa))
     return _sized_abstract_array_axes(S, ax)
 end
 
@@ -32,9 +36,9 @@ function promote_rule(::Type{<:HybridArray{S,T,N,M,TDataA}}, ::Type{<:HybridArra
     HybridArray{S,TU,N,M,promote_type(TDataA, TDataB)::Type{<:AbstractArray{TU}}}
 end
 
-@inline copy(a::HybridArray) = typeof(a)(copy(a.data))
+@inline copy(a::HybridArray) = typeof(a)(copy(parent(a)))
 
-similar(a::HA, ::Type{T2}) where {S, HA<:HybridArray{S}, T2} = HybridArray{S, T2}(similar(a.data, T2))
+similar(a::HA, ::Type{T2}) where {S, HA<:HybridArray{S}, T2} = HybridArray{S, T2}(similar(parent(a), T2))
 
 similar(::Type{<:HybridArray{S,T,N,M}},::Type{T2}) where {S,T,N,M,T2} = HybridArray{S,T2,N,M}(undef)
 similar(::Type{SA},::Type{T},s::Size{S}) where {SA<:HybridArray,T,S} = hybridarray_similar_type(T,s,StaticArrays.length_val(s))(undef)
@@ -48,9 +52,9 @@ _h_similar_type(::Type{A},::Type{T},s::Size{S}) where {A<:HybridArray,T,S} = hyb
 
 Size(::Type{<:HybridArray{S}}) where {S} = Size(S)
 
-Base.IndexStyle(a::HybridArray) = Base.IndexStyle(a.data)
+Base.IndexStyle(a::HybridArray) = Base.IndexStyle(parent(a))
 Base.IndexStyle(::Type{HA}) where {S,T,N,M,TData,HA<:HybridArray{S,T,N,M,TData}} = Base.IndexStyle(TData)
 
-Base.vec(a::HybridArray) = vec(a.data)
+Base.vec(a::HybridArray) = vec(parent(a))
 
 StaticArrays.similar_type(::Type{<:SSubArray},::Type{T},s::Size{S}) where {S,T} = StaticArrays.default_similar_type(T,s,StaticArrays.length_val(s))

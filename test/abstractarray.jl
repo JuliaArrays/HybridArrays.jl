@@ -18,34 +18,34 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
     @testset "convert" begin
         MM = [1 2 3; 4 5 6]
         M = HybridMatrix{2, StaticArrays.Dynamic()}(MM)
-        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()}}, MM)).data == M
-        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Int}, MM)).data == M
-        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64}, MM)).data == M
-        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2}, MM)).data == M
-        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2,2}, MM)).data == M
-        @test (@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2,2,Matrix{Float64}}, MM)).data == M
+        @test parent(@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()}}, MM)) == M
+        @test parent(@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Int}, MM)) == M
+        @test parent(@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64}, MM)) == M
+        @test parent(@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2}, MM)) == M
+        @test parent(@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2,2}, MM)) == M
+        @test parent(@inferred convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64,2,2,Matrix{Float64}}, MM)) == M
         @test convert(typeof(M), M) === M
         if VERSION >= v"1.1"
             @test convert(HybridArray{Tuple{2,StaticArrays.Dynamic()},Float64}, M) == M
         end
-        @test convert(Array, M) === M.data
-        @test convert(Array{Int}, M) === M.data
-        @test convert(Matrix, M) === M.data
-        @test convert(Matrix{Int}, M) === M.data
+        @test convert(Array, M) === parent(M)
+        @test convert(Array{Int}, M) === parent(M)
+        @test convert(Matrix, M) === parent(M)
+        @test convert(Matrix{Int}, M) === parent(M)
 
         @test Array(M) == M
-        @test Array(M) !== M.data
+        @test Array(M) !== parent(M)
         @test Matrix(M) == M
-        @test Matrix(M) !== M.data
+        @test Matrix(M) !== parent(M)
         @test Matrix{Int}(M) == M
-        @test Matrix{Int}(M) !== M.data
+        @test Matrix{Int}(M) !== parent(M)
         @test_throws MethodError Vector(M)
     end
 
     @testset "copy" begin
         M = HybridMatrix{2, StaticArrays.Dynamic()}([1 2; 3 4])
         @test @inferred(copy(M))::HybridMatrix == M
-        @test copy(M).data !== M.data
+        @test parent(copy(M)) !== parent(M)
     end
 
     @testset "similar" begin
@@ -78,26 +78,35 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
         @test_throws TypeError HybridArrays.new_out_size_nongen(Size{Tuple{1,2}}, 'a')
     end
 
+    @testset "elsize, eltype" begin
+        for T in [Int8, Int16, Int32, Int64, Int128, Float16, Float32, Float64, BigFloat]
+            M_array  = rand(T, 2, 2)
+            M_hybrid = HybridMatrix{2, StaticArrays.Dynamic()}(M_array)
+            @test Base.eltype(M_hybrid) === Base.eltype(M_array)
+            @test Base.elsize(M_hybrid) === Base.elsize(M_array)
+        end
+    end
+
     @testset "strides" begin
         M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
 
-        @test strides(M) == strides(M.data)
+        @test strides(M) == strides(parent(M))
     end
 
     @testset "pointer" begin
         M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
         MT = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4]')
 
-        @test pointer(M) == pointer(M.data)
+        @test pointer(M) == pointer(parent(M))
         if VERSION >= v"1.5"
             # pointer on Adjoint is not available on earilier versions of Julia
-            @test pointer(MT) == pointer(MT.data)
+            @test pointer(MT) == pointer(parent(MT))
         end
     end
 
     @testset "unsafe_convert" begin
         M = HybridMatrix{2, StaticArrays.Dynamic(), Int}([1 2; 3 4])
-        @test Base.unsafe_convert(Ptr{Int}, M) === pointer(M.data)
+        @test Base.unsafe_convert(Ptr{Int}, M) === pointer(parent(M))
     end
 
     @test HybridArrays._totally_linear() === true
