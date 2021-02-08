@@ -158,6 +158,7 @@ include("arraymath.jl")
 include("broadcast.jl")
 include("linalg.jl")
 include("ssubarray.jl")
+include("nonstandard_indices.jl")
 if VERSION >= v"1.2"
     include("array_interface_compat.jl")
 end

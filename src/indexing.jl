@@ -298,7 +298,7 @@ end
 
 @inline function Base.view(
     a::HybridArray{S},
-    indices...,
+    indices::Union{Int, AbstractArray, Colon}...,
 ) where {S}
     inner_view = invoke(view, Tuple{AbstractArray, typeof(indices).parameters...}, a, indices...)
     return _view_hybrid(a, all_dynamic_fixed_val(S, indices...), inner_view, indices...)
