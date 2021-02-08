@@ -75,8 +75,7 @@ using StaticArrays, HybridArrays, Test, LinearAlgebra
     end
 
     @testset "errors" begin
-        M = HybridArray{Tuple{1, 2}}([1 2])
-        @test_throws TypeError HybridArrays.new_out_size_nongen(M, 'a')
+        @test_throws TypeError HybridArrays.new_out_size_nongen(Size{Tuple{1,2}}, 'a')
     end
 
     @testset "strides" begin

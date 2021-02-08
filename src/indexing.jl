@@ -6,16 +6,11 @@ Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds::Int...) whe
     return getindex(sa.data, inds...)
 end
 
-Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds::Union{Int, AbstractArray, Colon}...) where S
-    _getindex(all_dynamic_fixed_val(sa, inds...), sa, inds...)
+Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where S
+    _getindex(all_dynamic_fixed_val(S, inds...), sa, inds...)
 end
 
-# general fallback allowing, e.g. `..` from EllipsisNotation.jl
-Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds...) where S
-    getindex(sa, to_indices(sa, inds)...)
-end
-
-Base.@propagate_inbounds function _getindex(::Val{:dynamic_fixed_true}, sa::HybridArray, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon, Base.Slice}...)
+Base.@propagate_inbounds function _getindex(::Val{:dynamic_fixed_true}, sa::HybridArray, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...)
     return _getindex_all_static(sa, inds...)
 end
 
@@ -31,25 +26,23 @@ function _get_indices(i::Tuple, j::Int, i1::Type{T}, inds...) where T<:StaticArr
     return (:(inds[$j][$(i[1])]), _get_indices(i[2:end], j+1, inds...)...)
 end
 
-function _get_indices(i::Tuple, j::Int, i1::Union{Type{Colon},Type{<:Base.Slice}}, inds...)
+function _get_indices(i::Tuple, j::Int, i1::Type{Colon}, inds...)
     return (i[1], _get_indices(i[2:end], j+1, inds...)...)
 end
 
 _totally_linear() = true
 _totally_linear(inds...) = false
 _totally_linear(inds::Type{Int}...) = true
-_totally_linear(inds::Union{Type{Colon}, Type{<:Base.Slice}}...) = true
-_totally_linear(i1::Union{Type{Colon}, Type{<:Base.Slice}}, inds...) = _totally_linear(inds...)
+_totally_linear(inds::Type{Colon}...) = true
+_totally_linear(i1::Type{Colon}, inds...) = _totally_linear(inds...)
 
-# this gets types as arguments since it's called from `@generated function`s
-function new_out_size_nongen(::Type{<:HybridArray{Size}}, inds::Union{Type{Int}, Type{<:AbstractArray}, Type{Colon}}...) where Size
+function new_out_size_nongen(::Type{Size}, inds...) where Size
     os = []
     map(Size.parameters, inds) do s, i
         if i == Int
-            # nothing to do since this size will be dropped
         elseif i <: StaticVector
             push!(os, length(i))
-        elseif i == Colon || i <: Base.Slice
+        elseif i == Colon
             push!(os, s)
         else
             error("Unknown index type: $i")
@@ -58,26 +51,20 @@ function new_out_size_nongen(::Type{<:HybridArray{Size}}, inds::Union{Type{Int},
     return tuple(os...)
 end
 
-# general fallback allowing, e.g. `..` from EllipsisNotation.jl
-function new_out_size_nongen(a::Type{<:HybridArray{Size}}, inds...) where Size
-    return new_out_size_nongen(a, to_indices(a, inds)...)
-end
-
-# this gets types as arguments since it's called from `@generated function`s
 """
-    _get_linear_inds(sa::Type{<:HybridArray{Size}}, inds...)
+    _get_linear_inds(S, inds...)
 
-Returns linear indices for given `Size` and access indices.
+Returns linear indices for given size and access indices.
 Order is selected to make setindex! with array input be linearly indexed by
 position of index in returned vector.
 """
-function _get_linear_inds(sa::Type{<:HybridArray{Size}}, inds...) where Size
-    newsize = new_out_size_nongen(sa, inds...)
+function _get_linear_inds(S, inds...)
+    newsize = new_out_size_nongen(S, inds...)
     indices = CartesianIndices(newsize)
     out_inds = Any[]
     sizeprods = Union{Int, Expr}[1]
     needs_dynsize = false
-    for (i, s) in enumerate(Size.parameters[1:(end-1)])
+    for (i, s) in enumerate(S.parameters[1:(end-1)])
         if isa(s, Int) && isa(sizeprods[end], Int)
             push!(sizeprods, s*sizeprods[end])
         elseif isa(s, Int)
@@ -121,15 +108,15 @@ function _get_linear_inds(sa::Type{<:HybridArray{Size}}, inds...) where Size
     end
 end
 
-@generated function _getindex_all_static(sa::HybridArray{S,T}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon, Base.Slice}...) where {S,T}
-    newsize = new_out_size_nongen(sa, inds...)
+@generated function _getindex_all_static(sa::HybridArray{S,T}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where {S,T}
+    newsize = new_out_size_nongen(S, inds...)
     exprs = Vector{Expr}(undef, length(newsize))
 
     indices = CartesianIndices(newsize)
     exprs = similar(indices, Expr)
     Tnewsize = Tuple{newsize...}
 
-    lininds = _get_linear_inds(sa, inds...)
+    lininds = _get_linear_inds(S, inds...)
     if lininds === nothing
         for current_ind ∈ indices
             cinds = _get_indices(current_ind.I, 1, inds...)
@@ -151,8 +138,8 @@ end
     end
 end
 
-function new_out_size(sa::HybridArray{Size}, inds::StaticArrays.StaticIndexing...) where Size
-    return new_out_size(sa, map(StaticArrays.unwrap, inds)...)
+function new_out_size(S::Type{Size}, inds::StaticArrays.StaticIndexing...) where Size
+    return new_out_size(S, map(StaticArrays.unwrap, inds)...)
 end
 
 
@@ -160,11 +147,10 @@ end
 # may not be a good idea
 _get_static_vector_length(::Type{<:StaticVector{N}}) where {N} = N
 
-@generated function new_out_size(::HybridArray{Size}, inds::Union{Int, AbstractArray, Colon}...) where Size
+@generated function new_out_size(::Type{Size}, inds...) where Size
     os = []
     map(Size.parameters, inds) do s, i
         if i == Int
-            # nothing to do since this size will be dropped
         elseif i <: StaticVector
             push!(os, _get_static_vector_length(i))
         elseif i == Colon || i <: Base.Slice
@@ -180,13 +166,8 @@ _get_static_vector_length(::Type{<:StaticVector{N}}) where {N} = N
     return Tuple{os...}
 end
 
-# general fallback allowing, e.g. `..` from EllipsisNotation.jl
-function new_out_size(a::HybridArray{Size}, inds...) where Size
-    return new_out_size(a, to_indices(a, inds)...)
-end
-
-@inline function _getindex(::Val{:dynamic_fixed_false}, sa::HybridArray{S}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon, Base.Slice}...) where S
-    newsize = new_out_size(sa, inds...)
+@inline function _getindex(::Val{:dynamic_fixed_false}, sa::HybridArray{S}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where S
+    newsize = new_out_size(S, inds...)
     return HybridArray{newsize}(getindex(sa.data, inds...))
 end
 
@@ -227,21 +208,21 @@ end
     end
 end
 
-Base.@propagate_inbounds function setindex!(sa::HybridArray{S}, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon, Base.Slice}...) where S
-    _setindex!(all_dynamic_fixed_val(sa, inds...), sa, value, inds...)
+Base.@propagate_inbounds function setindex!(sa::HybridArray{S}, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where S
+    _setindex!(all_dynamic_fixed_val(S, inds...), sa, value, inds...)
 end
 
-@inline function _setindex!(::Val{:dynamic_fixed_false}, sa::HybridArray{S}, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon, Base.Slice}...) where S
-    newsize = new_out_size(sa, inds...)
+@inline function _setindex!(::Val{:dynamic_fixed_false}, sa::HybridArray{S}, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where S
+    newsize = new_out_size(S, inds...)
     return HybridArray{newsize}(setindex!(sa.data, value, inds...))
 end
 
-Base.@propagate_inbounds function _setindex!(::Val{:dynamic_fixed_true}, sa::HybridArray, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon, Base.Slice}...)
+Base.@propagate_inbounds function _setindex!(::Val{:dynamic_fixed_true}, sa::HybridArray, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...)
     return _setindex!_all_static(sa, value, inds...)
 end
 
-@generated function _setindex!_all_static(sa::HybridArray{S,T}, v::AbstractArray, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon, Base.Slice}...) where {S,T}
-    newsize = new_out_size_nongen(sa, inds...)
+@generated function _setindex!_all_static(sa::HybridArray{S,T}, v::AbstractArray, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where {S,T}
+    newsize = new_out_size_nongen(S, inds...)
     exprs = Vector{Expr}(undef, length(newsize))
 
     indices = CartesianIndices(newsize)
@@ -256,7 +237,7 @@ end
         end
     end
 
-    lininds = _get_linear_inds(sa, inds...)
+    lininds = _get_linear_inds(S, inds...)
     if lininds === nothing
         exprs = similar(indices, Expr)
         for current_ind ∈ indices
@@ -306,12 +287,12 @@ end
 end
 
 @inline function _view_hybrid(a::HybridArray{S}, ::Val{:dynamic_fixed_true}, inner_view, indices...) where {S}
-    new_size = new_out_size(a, indices...)
+    new_size = new_out_size(S, indices...)
     return SizedArray{new_size}(inner_view)
 end
 
 @inline function _view_hybrid(a::HybridArray{S}, ::Val{:dynamic_fixed_false}, inner_view, indices...) where {S}
-    new_size = new_out_size(a, indices...)
+    new_size = new_out_size(S, indices...)
     return HybridArray{new_size}(inner_view)
 end
 
@@ -320,5 +301,5 @@ end
     indices...,
 ) where {S}
     inner_view = invoke(view, Tuple{AbstractArray, typeof(indices).parameters...}, a, indices...)
-    return _view_hybrid(a, all_dynamic_fixed_val(a, indices...), inner_view, indices...)
+    return _view_hybrid(a, all_dynamic_fixed_val(S, indices...), inner_view, indices...)
 end
