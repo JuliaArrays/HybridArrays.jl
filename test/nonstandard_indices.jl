@@ -50,4 +50,37 @@ using Test
   end
 end
 
+
+@testset "Compatibility with Cartesian indices" begin
+  u_array  = rand(2, 3, 4)
+  u_hybrid = HybridArray{Tuple{2, 3, 4}}(copy(u_array))
+  @test u_hybrid        ≈ u_array
+  @test u_hybrid[CartesianIndex(1, 2), :] ≈ u_array[CartesianIndex(1, 2), :]
+  @test u_hybrid[:, CartesianIndex(1, 2)] ≈ u_array[:, CartesianIndex(1, 2)]
+
+  @test_broken typeof(u_hybrid[CartesianIndex(1, 2), :]) == typeof(u_hybrid[1, 2, :])
+  @test_broken typeof(u_hybrid[:, CartesianIndex(1, 2)]) == typeof(u_hybrid[:, 1, 2])
+
+  @inferred u_hybrid[CartesianIndex(1, 2), :]
+  @inferred u_hybrid[:, CartesianIndex(1, 2)]
+  @inferred u_hybrid[CartesianIndex(1, 2, 3)]
+
+  let new_values = rand(4)
+    u_array[CartesianIndex(1, 2), :]  .= new_values
+    u_hybrid[CartesianIndex(1, 2), :] .= new_values
+    @test u_hybrid        ≈ u_array
+    @test u_hybrid[CartesianIndex(1, 2), :] ≈ u_array[CartesianIndex(1, 2), :]
+    @test u_hybrid[:, CartesianIndex(1, 2)] ≈ u_array[:, CartesianIndex(1, 2)]
+  end
+
+  let new_values = rand(2)
+    u_array[:, CartesianIndex(1, 2)]  .= new_values
+    u_hybrid[:, CartesianIndex(1, 2)] .= new_values
+    @test u_hybrid        ≈ u_array
+    @test u_hybrid[CartesianIndex(1, 2), :] ≈ u_array[CartesianIndex(1, 2), :]
+    @test u_hybrid[:, CartesianIndex(1, 2)] ≈ u_array[:, CartesianIndex(1, 2)]
+  end
+end
+
+
 end # module
