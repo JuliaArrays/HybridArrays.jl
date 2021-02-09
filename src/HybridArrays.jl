@@ -22,7 +22,7 @@ import Base: convert,
 import Base.Array
 
 using StaticArrays
-using StaticArrays: Dynamic
+using StaticArrays: Dynamic, StaticIndexing
 import StaticArrays: _setindex!_scalar, Size
 
 using LinearAlgebra

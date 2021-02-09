@@ -10,7 +10,19 @@ Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds::Union{Int, 
     _getindex(all_dynamic_fixed_val(S, inds...), sa, inds...)
 end
 
-Base.@propagate_inbounds function _getindex(::Val{:dynamic_fixed_true}, sa::HybridArray, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...)
+@inline function Base._getindex(l::IndexLinear, sa::HybridArray{S}, s::Base.Slice) where S
+    return HybridArray{S}(Base._getindex(l, sa.data, s))
+end
+
+Base.@propagate_inbounds function Base._getindex(l::IndexLinear, sa::HybridArray{S}, inds::Int...) where S
+    return Base._getindex(l, sa.data, inds...)
+end
+
+Base.@propagate_inbounds function Base._getindex(::IndexLinear, sa::HybridArray{S}, inds::Union{Int, StaticVector, Colon, Base.Slice}...) where S
+    _getindex(all_dynamic_fixed_val(S, inds...), sa, inds...)
+end
+
+Base.@propagate_inbounds function _getindex(::Val{:dynamic_fixed_true}, sa::HybridArray, inds::Union{Int, StaticVector, Colon, Base.Slice, }...)
     return _getindex_all_static(sa, inds...)
 end
 
@@ -18,23 +30,25 @@ function _get_indices(i::Tuple{}, j::Int)
     return ()
 end
 
-function _get_indices(i::Tuple, j::Int, i1::Type{Int}, inds...)
+function _get_indices(i::Tuple, j::Int, ::Type{Int}, inds...)
     return (:(inds[$j]), _get_indices(i, j+1, inds...)...)
 end
 
-function _get_indices(i::Tuple, j::Int, i1::Type{T}, inds...) where T<:StaticArray{<:Tuple, Int}
+function _get_indices(i::Tuple, j::Int, ::Type{T}, inds...) where T<:StaticVector
     return (:(inds[$j][$(i[1])]), _get_indices(i[2:end], j+1, inds...)...)
 end
 
-function _get_indices(i::Tuple, j::Int, i1::Type{Colon}, inds...)
+function _get_indices(i::Tuple, j::Int, ::Type{<:Union{Colon, Base.Slice}}, inds...)
     return (i[1], _get_indices(i[2:end], j+1, inds...)...)
 end
 
 _totally_linear() = true
 _totally_linear(inds...) = false
 _totally_linear(inds::Type{Int}...) = true
+_totally_linear(inds::Type{<:Base.Slice}...) = true
 _totally_linear(inds::Type{Colon}...) = true
-_totally_linear(i1::Type{Colon}, inds...) = _totally_linear(inds...)
+_totally_linear(::Type{<:Base.Slice}, inds...) = _totally_linear(inds...)
+_totally_linear(::Type{Colon}, inds...) = _totally_linear(inds...)
 
 function new_out_size_nongen(::Type{Size}, inds...) where Size
     os = []
@@ -42,7 +56,7 @@ function new_out_size_nongen(::Type{Size}, inds...) where Size
         if i == Int
         elseif i <: StaticVector
             push!(os, length(i))
-        elseif i == Colon
+        elseif i == Colon || i <: Base.Slice
             push!(os, s)
         else
             error("Unknown index type: $i")
@@ -108,7 +122,7 @@ function _get_linear_inds(S, inds...)
     end
 end
 
-@generated function _getindex_all_static(sa::HybridArray{S,T}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where {S,T}
+@generated function _getindex_all_static(sa::HybridArray{S,T}, inds::Union{Int, StaticIndexing, Base.Slice, Colon, StaticArray}...) where {S,T}
     newsize = new_out_size_nongen(S, inds...)
     exprs = Vector{Expr}(undef, length(newsize))
 
@@ -138,11 +152,6 @@ end
     end
 end
 
-function new_out_size(S::Type{Size}, inds::StaticArrays.StaticIndexing...) where Size
-    return new_out_size(S, map(StaticArrays.unwrap, inds)...)
-end
-
-
 # _get_static_vector_length is used in a generated function so using a generic function
 # may not be a good idea
 _get_static_vector_length(::Type{<:StaticVector{N}}) where {N} = N
@@ -166,9 +175,13 @@ _get_static_vector_length(::Type{<:StaticVector{N}}) where {N} = N
     return Tuple{os...}
 end
 
-@inline function _getindex(::Val{:dynamic_fixed_false}, sa::HybridArray{S}, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where S
-    newsize = new_out_size(S, inds...)
-    return HybridArray{newsize}(getindex(sa.data, inds...))
+maybe_unwrap(i) = i
+maybe_unwrap(i::StaticIndexing) = i.ind
+
+@inline function _getindex(::Val{:dynamic_fixed_false}, sa::HybridArray{S}, inds::Union{Int, StaticIndexing, StaticVector, Base.Slice, Colon}...) where S
+    uinds = map(maybe_unwrap, inds)
+    newsize = new_out_size(S, uinds...)
+    return HybridArray{newsize}(getindex(sa.data, uinds...))
 end
 
 # setindex stuff

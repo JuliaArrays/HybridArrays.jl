@@ -14,8 +14,8 @@ using Test
   @test u_hybrid[.., 1] ≈ u_array[.., 1]
   @test u_hybrid[..]    ≈ u_array[..]
 
-  @test_broken typeof(u_hybrid[1, ..]) == typeof(u_hybrid[1, :])
-  @test_broken typeof(u_hybrid[.., 1]) == typeof(u_hybrid[:, 1])
+  @test typeof(u_hybrid[1, ..]) == typeof(u_hybrid[1, :])
+  @test typeof(u_hybrid[.., 1]) == typeof(u_hybrid[:, 1])
   @test typeof(u_hybrid[..])    == typeof(u_hybrid[:, :])
 
   @inferred u_hybrid[1, ..]
@@ -58,8 +58,8 @@ end
   @test u_hybrid[CartesianIndex(1, 2), :] ≈ u_array[CartesianIndex(1, 2), :]
   @test u_hybrid[:, CartesianIndex(1, 2)] ≈ u_array[:, CartesianIndex(1, 2)]
 
-  @test_broken typeof(u_hybrid[CartesianIndex(1, 2), :]) == typeof(u_hybrid[1, 2, :])
-  @test_broken typeof(u_hybrid[:, CartesianIndex(1, 2)]) == typeof(u_hybrid[:, 1, 2])
+  @test typeof(u_hybrid[CartesianIndex(1, 2), :]) == typeof(u_hybrid[1, 2, :])
+  @test typeof(u_hybrid[:, CartesianIndex(1, 2)]) == typeof(u_hybrid[:, 1, 2])
 
   @inferred u_hybrid[CartesianIndex(1, 2), :]
   @inferred u_hybrid[:, CartesianIndex(1, 2)]
