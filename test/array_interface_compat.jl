@@ -16,10 +16,10 @@ using ArrayInterface: StaticInt
     @test (@inferred ArrayInterface.strides(MV)) === (2, 30)
     @test (@inferred ArrayInterface.size(M2)) === (StaticInt(2), StaticInt(3), 5, 7)
 
-    @test ArrayInterface.contiguous_axis(typeof(M2)) === ArrayInterface.contiguous_axis(typeof(M2.data))
-    @test ArrayInterface.contiguous_batch_size(typeof(M2)) === ArrayInterface.contiguous_batch_size(typeof(M2.data))
-    @test ArrayInterface.stride_rank(typeof(M2)) === ArrayInterface.stride_rank(typeof(M2.data))
-    @test ArrayInterface.contiguous_axis(typeof(M')) === ArrayInterface.contiguous_axis(typeof(M.data'))
-    @test ArrayInterface.contiguous_batch_size(typeof(M')) === ArrayInterface.contiguous_batch_size(typeof(M.data'))
-    @test ArrayInterface.stride_rank(typeof(M')) === ArrayInterface.stride_rank(typeof(M.data'))
+    @test ArrayInterface.contiguous_axis(typeof(M2)) === ArrayInterface.contiguous_axis(typeof(parent(M2)))
+    @test ArrayInterface.contiguous_batch_size(typeof(M2)) === ArrayInterface.contiguous_batch_size(typeof(parent(M2)))
+    @test ArrayInterface.stride_rank(typeof(M2)) === ArrayInterface.stride_rank(typeof(parent(M2)))
+    @test ArrayInterface.contiguous_axis(typeof(M')) === ArrayInterface.contiguous_axis(typeof(parent(M)'))
+    @test ArrayInterface.contiguous_batch_size(typeof(M')) === ArrayInterface.contiguous_batch_size(typeof(parent(M)'))
+    @test ArrayInterface.stride_rank(typeof(M')) === ArrayInterface.stride_rank(typeof(parent(M)'))
 end

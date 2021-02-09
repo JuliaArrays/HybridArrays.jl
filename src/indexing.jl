@@ -124,14 +124,14 @@ end
         end
         return quote
             Base.@_propagate_inbounds_meta
-            sadata = sa.data
+            sadata = parent(sa)
             SArray{$Tnewsize,$T}(tuple($(exprs...)))
         end
     else
         exprs = [:(getindex(sadata, $id)) for id ∈ lininds[2]]
         return quote
             Base.@_propagate_inbounds_meta
-            sadata = sa.data
+            sadata = parent(sa)
             $(lininds[1])
             SArray{$Tnewsize,$T}(tuple($(exprs...)))
         end
@@ -214,7 +214,7 @@ end
 
 @inline function _setindex!(::Val{:dynamic_fixed_false}, sa::HybridArray{S}, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...) where S
     newsize = new_out_size(S, inds...)
-    return HybridArray{newsize}(setindex!(sa.data, value, inds...))
+    return HybridArray{newsize}(setindex!(parent(sa), value, inds...))
 end
 
 Base.@propagate_inbounds function _setindex!(::Val{:dynamic_fixed_true}, sa::HybridArray, value, inds::Union{Int, StaticArray{<:Tuple, Int}, Colon}...)
@@ -248,7 +248,7 @@ end
         if v <: StaticArray
             return quote
                 Base.@_propagate_inbounds_meta
-                sadata = sa.data
+                sadata = parent(sa)
                 @inbounds $(Expr(:block, exprs...))
             end
         else
@@ -257,7 +257,7 @@ end
                 if size(v) != $newsize
                     throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
                 end
-                sadata = sa.data
+                sadata = parent(sa)
                 @inbounds $(Expr(:block, exprs...))
             end
         end
@@ -269,7 +269,7 @@ end
             return quote
                 Base.@_propagate_inbounds_meta
                 $(lininds[1])
-                sadata = sa.data
+                sadata = parent(sa)
                 @inbounds $(Expr(:block, exprs...))
             end
         else
@@ -279,7 +279,7 @@ end
                     throw(DimensionMismatch("tried to assign array of size $(size(v)) to destination of size $($newsize)"))
                 end
                 $(lininds[1])
-                sadata = sa.data
+                sadata = parent(sa)
                 @inbounds $(Expr(:block, exprs...))
             end
         end

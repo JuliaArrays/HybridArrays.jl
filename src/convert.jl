@@ -5,18 +5,18 @@ Base.@propagate_inbounds (::Type{HybridArray{S,T,N}})(a::AbstractArray) where {S
 Base.@propagate_inbounds (::Type{HybridArray{S,T}})(a::AbstractArray) where {S,T} = convert(HybridArray{S,T}, a)
 
 # Overide some problematic default behaviour
-@inline convert(::Type{SA}, sa::HybridArray) where {SA<:HybridArray} = SA(sa.data)
+@inline convert(::Type{SA}, sa::HybridArray) where {SA<:HybridArray} = SA(parent(sa))
 @inline convert(::Type{SA}, sa::SA) where {SA<:HybridArray} = sa
 
 # Back to Array (unfortunately need both convert and construct to overide other methods)
-@inline Array(sa::HybridArray{S}) where {S} = Array(sa.data)
-@inline Array{T}(sa::HybridArray{S,T}) where {T,S} = Array{T}(sa.data)
-@inline Array{T,N}(sa::HybridArray{S,T,N}) where {T,S,N} = Array{T,N}(sa.data)
+@inline Array(sa::HybridArray{S}) where {S} = Array(parent(sa))
+@inline Array{T}(sa::HybridArray{S,T}) where {T,S} = Array{T}(parent(sa))
+@inline Array{T,N}(sa::HybridArray{S,T,N}) where {T,S,N} = Array{T,N}(parent(sa))
 
-@inline convert(::Type{Array}, sa::HybridArray) = convert(Array, sa.data)
-@inline convert(::Type{Array{T}}, sa::HybridArray{S,T}) where {T,S} = convert(Array, sa.data)
-@inline convert(::Type{Array{T,N}}, sa::HybridArray{S,T,N}) where {T,S,N} = convert(Array, sa.data)
-@inline convert(::Type{Array{T,N} where T}, sa::HybridArray{S}) where {S,N} = convert(Array, sa.data)
+@inline convert(::Type{Array}, sa::HybridArray) = convert(Array, parent(sa))
+@inline convert(::Type{Array{T}}, sa::HybridArray{S,T}) where {T,S} = convert(Array, parent(sa))
+@inline convert(::Type{Array{T,N}}, sa::HybridArray{S,T,N}) where {T,S,N} = convert(Array, parent(sa))
+@inline convert(::Type{Array{T,N} where T}, sa::HybridArray{S}) where {S,N} = convert(Array, parent(sa))
 
 function check_compatible_sizes(::Type{S}, a::NTuple{N,Int}) where {S,N}
     st = size_to_tuple(S)
@@ -66,4 +66,4 @@ end
     convert(HybridArray{S,T}, a)
 end
 
-@inline Base.unsafe_convert(::Type{Ptr{T}}, A::HybridArray{S,T}) where {S,T} = pointer(A.data)
+@inline Base.unsafe_convert(::Type{Ptr{T}}, A::HybridArray{S,T}) where {S,T} = pointer(parent(A))
