@@ -16,7 +16,7 @@ using Test
 
   @test typeof(u_hybrid[1, ..]) == typeof(u_hybrid[1, :])
   @test typeof(u_hybrid[.., 1]) == typeof(u_hybrid[:, 1])
-  @test typeof(u_hybrid[..])    == typeof(u_hybrid[:, :])
+  @test typeof(u_hybrid[..])    == typeof(u_hybrid[:])
 
   @inferred u_hybrid[1, ..]
   @inferred u_hybrid[.., 1]

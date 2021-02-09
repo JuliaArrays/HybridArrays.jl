@@ -1,5 +1,5 @@
 @inline function getindex(sa::HybridArray{S}, ::Colon) where S
-    return HybridArray{S}(getindex(sa.data, :))
+    return getindex(sa.data, :)
 end
 
 Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds::Int...) where S
@@ -11,7 +11,7 @@ Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds::Union{Int, 
 end
 
 @inline function Base._getindex(l::IndexLinear, sa::HybridArray{S}, s::Base.Slice) where S
-    return HybridArray{S}(Base._getindex(l, sa.data, s))
+    return Base._getindex(l, sa.data, s)
 end
 
 Base.@propagate_inbounds function Base._getindex(l::IndexLinear, sa::HybridArray{S}, inds::Int...) where S
