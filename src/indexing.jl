@@ -1,7 +1,3 @@
-@inline function getindex(sa::HybridArray{S}, ::Colon) where S
-    return getindex(sa.data, :)
-end
-
 Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds::Int...) where S
     return getindex(sa.data, inds...)
 end
@@ -10,19 +6,17 @@ Base.@propagate_inbounds function getindex(sa::HybridArray{S}, inds::Union{Int, 
     _getindex(all_dynamic_fixed_val(S, inds...), sa, inds...)
 end
 
-@inline function Base._getindex(l::IndexLinear, sa::HybridArray{S}, s::Base.Slice) where S
-    return Base._getindex(l, sa.data, s)
-end
-
+# This plugs into a deeper level of indexing in base to catch custom
+# indexing schemes based on `to_indices`.
+# A minor version Julia release could potentially break this (though it seems unlikely).
 Base.@propagate_inbounds function Base._getindex(l::IndexLinear, sa::HybridArray{S}, inds::Int...) where S
     return Base._getindex(l, sa.data, inds...)
 end
-
 Base.@propagate_inbounds function Base._getindex(::IndexLinear, sa::HybridArray{S}, inds::Union{Int, StaticVector, Colon, Base.Slice}...) where S
     _getindex(all_dynamic_fixed_val(S, inds...), sa, inds...)
 end
 
-Base.@propagate_inbounds function _getindex(::Val{:dynamic_fixed_true}, sa::HybridArray, inds::Union{Int, StaticVector, Colon, Base.Slice, }...)
+Base.@propagate_inbounds function _getindex(::Val{:dynamic_fixed_true}, sa::HybridArray, inds::Union{Int, StaticVector, Colon, Base.Slice}...)
     return _getindex_all_static(sa, inds...)
 end
 
@@ -52,6 +46,7 @@ _totally_linear(::Type{Colon}, inds...) = _totally_linear(inds...)
 
 function new_out_size_nongen(::Type{Size}, inds...) where Size
     os = []
+    @assert length(Size.parameters) == length(inds)
     map(Size.parameters, inds) do s, i
         if i == Int
         elseif i <: StaticVector
@@ -63,6 +58,14 @@ function new_out_size_nongen(::Type{Size}, inds...) where Size
         end
     end
     return tuple(os...)
+end
+
+function new_out_size_nongen(::Type{Size}, i::Type{<:Union{Colon, Base.Slice}}) where Size
+    if has_dynamic(Size)
+        return (Dynamic(),)
+    else
+        return (tuple_nodynamic_prod(Size),)
+    end
 end
 
 """
@@ -158,6 +161,7 @@ _get_static_vector_length(::Type{<:StaticVector{N}}) where {N} = N
 
 @generated function new_out_size(::Type{Size}, inds...) where Size
     os = []
+    @assert length(Size.parameters) === length(inds)
     map(Size.parameters, inds) do s, i
         if i == Int
         elseif i <: StaticVector
@@ -173,6 +177,14 @@ _get_static_vector_length(::Type{<:StaticVector{N}}) where {N} = N
         end
     end
     return Tuple{os...}
+end
+
+@generated function new_out_size(::Type{Size}, ::Union{Colon, Base.Slice}) where Size
+    if has_dynamic(Size)
+        return Tuple{Dynamic()}
+    else
+        return Tuple{tuple_nodynamic_prod(Size)}
+    end
 end
 
 maybe_unwrap(i) = i

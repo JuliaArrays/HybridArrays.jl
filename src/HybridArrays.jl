@@ -55,11 +55,10 @@ end
 
         destatizing = (inds[i] <: AbstractArray && !(
             inds[i] <: StaticArray ||
-            inds[i] <: Base.Slice{<:StaticArray} ||
-            inds[i] <: SOneTo ||
-            inds[i] <: Base.Slice{<:SOneTo}))
+            inds[i] <: Base.Slice ||
+            inds[i] <: SOneTo))
 
-        nonstatizing = inds[i] == Colon || destatizing
+        nonstatizing = inds[i] == Colon || inds[i] <: Base.Slice || destatizing
 
         if destatizing || (isa(param, Dynamic) && nonstatizing)
             all_fixed = false
@@ -72,6 +71,23 @@ end
         return Val(:dynamic_fixed_true)
     else
         return Val(:dynamic_fixed_false)
+    end
+end
+
+function has_dynamic(::Type{Size}) where Size<:Tuple
+    for param in Size.parameters
+        if isa(param, Dynamic)
+            return true
+        end
+    end
+    return false
+end
+
+@generated function all_dynamic_fixed_val(::Type{Size}, inds::Union{Colon, Base.Slice}) where Size<:Tuple
+    if has_dynamic(Size)
+        return Val(:dynamic_fixed_false)
+    else
+        return Val(:dynamic_fixed_true)
     end
 end
 
