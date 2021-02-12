@@ -6,7 +6,7 @@ using HybridArrays
 using Test
 
 
-@testset "Compatibility with EllipsisNotation" begin
+VERSION >= v"1.5" && @testset "Compatibility with EllipsisNotation" begin
   u_array  = rand(2, 10)
   u_hybrid = HybridArray{Tuple{2, HybridArrays.Dynamic()}}(copy(u_array))
   @test u_hybrid        ≈ u_array
