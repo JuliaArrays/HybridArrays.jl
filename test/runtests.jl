@@ -2,7 +2,10 @@ using HybridArrays
 using StaticArrays
 using Test
 
-@test length(Test.detect_ambiguities(HybridArrays)) == 0
+if VERSION < v"1.6"
+    # Julia 1.6 has a stack overflow on this test :(
+    @test length(Test.detect_ambiguities(HybridArrays)) == 0
+end
 
 @testset "Inner Constructors" begin
     @test parent(HybridArray{Tuple{2}, Int, 1, 1, Vector{Int}}((3, 4))) == [3, 4]
