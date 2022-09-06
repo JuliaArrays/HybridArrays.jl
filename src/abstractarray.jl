@@ -38,7 +38,28 @@ end
 
 @inline copy(a::HybridArray) = typeof(a)(copy(parent(a)))
 
+homogenized_last(::StaticArrays.HeterogeneousBaseShape) = StaticArrays.Dynamic()
+homogenized_last(a::SOneTo) = last(a)
+
+hybrid_homogenize_shape(::Tuple{}) = ()
+hybrid_homogenize_shape(shape::Tuple{Vararg{StaticArrays.HeterogeneousShape}}) = Size(map(homogenized_last, shape))
+hybrid_homogenize_shape(shape::Tuple{Vararg{StaticArrays.HeterogeneousBaseShape}}) = map(last, shape)
+
 similar(a::HA, ::Type{T2}) where {S, HA<:HybridArray{S}, T2} = HybridArray{S, T2}(similar(parent(a), T2))
+function similar(a::HybridArray, ::Type{T2}, shape::StaticArrays.HeterogeneousShapeTuple) where {T2}
+    s = hybrid_homogenize_shape(shape)
+    HT = hybridarray_similar_type(T2, s, StaticArrays.length_val(s))
+    return HT(similar(a.data, T2, shape))
+end
+function similar(a::HybridArray, shape::StaticArrays.HeterogeneousShapeTuple)
+    return similar(a, eltype(a), shape)
+end
+function similar(a::HybridArray, ::Type{T2}, shape::Tuple{SOneTo, Vararg{SOneTo}}) where {T2}
+    return similar(a.data, T2, StaticArrays.homogenize_shape(shape))
+end
+function similar(a::HybridArray, shape::Tuple{SOneTo, Vararg{SOneTo}})
+    return similar(a.data, StaticArrays.homogenize_shape(shape))
+end
 
 similar(::Type{<:HybridArray{S,T,N,M}},::Type{T2}) where {S,T,N,M,T2} = HybridArray{S,T2,N,M}(undef)
 similar(::Type{SA},::Type{T},s::Size{S}) where {SA<:HybridArray,T,S} = hybridarray_similar_type(T,s,StaticArrays.length_val(s))(undef)
