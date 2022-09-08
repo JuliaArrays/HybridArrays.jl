@@ -58,3 +58,5 @@ end
 ArrayInterface.contiguous_axis(::Type{HybridArray{S,T,N,N,TData}}) where {S,T,N,TData} = ArrayInterface.contiguous_axis(TData)
 ArrayInterface.contiguous_batch_size(::Type{HybridArray{S,T,N,N,TData}}) where {S,T,N,TData} = ArrayInterface.contiguous_batch_size(TData)
 ArrayInterface.stride_rank(::Type{HybridArray{S,T,N,N,TData}}) where {S,T,N,TData} = ArrayInterface.stride_rank(TData)
+
+ArrayInterface.dense_dims(x::HybridArray) = ArrayInterface.dense_dims(x.data)

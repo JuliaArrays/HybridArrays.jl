@@ -1,6 +1,7 @@
 
 using HybridArrays, ArrayInterface, Test, StaticArrays
 using ArrayInterface: StaticInt
+using Static
 
 @testset "ArrayInterface compatibility" begin
     M = HybridMatrix{2, StaticArrays.Dynamic()}([1 2; 4 5])
@@ -22,4 +23,5 @@ using ArrayInterface: StaticInt
     @test ArrayInterface.contiguous_axis(typeof(M')) === ArrayInterface.contiguous_axis(typeof(parent(M)'))
     @test ArrayInterface.contiguous_batch_size(typeof(M')) === ArrayInterface.contiguous_batch_size(typeof(parent(M)'))
     @test ArrayInterface.stride_rank(typeof(M')) === ArrayInterface.stride_rank(typeof(parent(M)'))
+    @test ArrayInterface.dense_dims(M) === (static(true), static(true))
 end
