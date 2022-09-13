@@ -1,7 +1,7 @@
 name = "HybridArrays"
 uuid = "1baab800-613f-4b0a-84e4-9cd3431bfbb9"
 authors = ["Mateusz Baran <mateuszbaran89@gmail.com>"]
-version = "0.4.11"
+version = "0.4.12"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -12,7 +12,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 EllipsisNotation = "1.1"
 Requires = "1"
 StaticArrays = "1.0.1"
-julia = "1.5"
+julia = "1.6"
 
 [extras]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
