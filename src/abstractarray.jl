@@ -36,7 +36,11 @@ function promote_rule(::Type{<:HybridArray{S,T,N,M,TDataA}}, ::Type{<:HybridArra
     HybridArray{S,TU,N,M,promote_type(TDataA, TDataB)::Type{<:AbstractArray{TU}}}
 end
 
-@inline copy(a::HybridArray) = typeof(a)(copy(parent(a)))
+@inline copy(a::HybridArray{S, T, N, M}) where {S, T, N, M} = begin
+    parentcopy = copy(parent(a))
+    HybridArray{S, T, N, M, typeof(parentcopy)}(parentcopy)
+end
+
 
 homogenized_last(::StaticArrays.HeterogeneousBaseShape) = StaticArrays.Dynamic()
 homogenized_last(a::SOneTo) = last(a)

@@ -47,6 +47,13 @@ using StaticArrays: Dynamic
         M = HybridMatrix{2, Dynamic()}([1 2; 3 4])
         @test @inferred(copy(M))::HybridMatrix == M
         @test parent(copy(M)) !== parent(M)
+
+        @testset "subarrays" begin
+            M = HybridMatrix{Dynamic(), 2}(rand(4, 2))
+            ha = view(M, :, 1)
+            @test copy(ha) == ha
+            @test parent(copy(ha)) !== parent(ha)
+        end
     end
 
     @testset "similar" begin
