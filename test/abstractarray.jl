@@ -126,4 +126,16 @@ using StaticArrays: Dynamic
     end
 
     @test HybridArrays._totally_linear() === true
+
+    @testset "undef initializers" begin
+        M = HybridVector{3,Int}(undef, 3)
+        @test isa(M, HybridVector{3,Int,1,Vector{Int}})
+        @test_throws ErrorException HybridVector{3,Int}(undef, 4)
+        M2 = HybridMatrix{Dynamic(),4,Int}(undef, 6, 4)
+        @test isa(M2, HybridMatrix{Dynamic(),4,Int,2,Matrix{Int}})
+        @test size(M2) === (6, 4)
+        M3 = HybridArray{Tuple{Dynamic(),3,4},Int}(undef, 5, 3, 4)
+        @test isa(M3, HybridArray{Tuple{Dynamic(),3,4},Int,3,3,Array{Int,3}})
+        @test size(M3) === (5, 3, 4)
+    end
 end

@@ -138,6 +138,9 @@ end
 
 @inline HybridArray{S,T,N}(::UndefInitializer) where {S,T,N} = HybridArray{S,T,N,N}(undef)
 @inline HybridArray{S,T}(::UndefInitializer) where {S,T} = HybridArray{S,T,StaticArrays.tuple_length(S),StaticArrays.tuple_length(S)}(undef)
+
+@inline HybridArray{S,T}(::UndefInitializer, d::Integer...) where {S,T} = HybridArray{S,T}(Array{T}(undef, d))
+
 @generated function (::Type{HybridArray{S,T,N,M,TData}})(x::NTuple{L,Any}) where {S,T,N,M,TData,L}
     if L != StaticArrays.tuple_prod(S)
         error("Dimension mismatch")
@@ -158,10 +161,12 @@ end
 HybridVector{S,T,M} = HybridArray{Tuple{S},T,1,M}
 @inline HybridVector{S}(a::TData) where {S,T,M,TData<:AbstractArray{T,M}} = HybridArray{Tuple{S},T,1,M,TData}(a)
 @inline HybridVector{S}(x::NTuple{L,T}) where {S,T,L} = HybridArray{Tuple{S},T,1,1,Vector{T}}(x)
+@inline HybridVector{S,T}(::UndefInitializer, d::Integer) where {S,T} = HybridVector{S,T}(Vector{T}(undef, d))
 
 HybridMatrix{S1,S2,T,M} = HybridArray{Tuple{S1,S2},T,2,M}
 @inline HybridMatrix{S1,S2}(a::TData) where {S1,S2,T,M,TData<:AbstractArray{T,M}} = HybridArray{Tuple{S1,S2},T,2,M,TData}(a)
 @inline HybridMatrix{S1,S2}(x::NTuple{L,T}) where {S1,S2,T,L} = HybridArray{Tuple{S1,S2},T,2,2,Matrix{T}}(x)
+@inline HybridMatrix{S1,S2,T}(::UndefInitializer, d1::Integer, d2::Integer) where {S1,S2,T} = HybridMatrix{S1,S2,T}(Matrix{T}(undef, d1, d2))
 
 export HybridArray, HybridMatrix, HybridVector
 
