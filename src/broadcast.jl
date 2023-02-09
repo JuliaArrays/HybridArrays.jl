@@ -1,6 +1,6 @@
 
 import Base.Broadcast: BroadcastStyle
-using Base.Broadcast: AbstractArrayStyle, Broadcasted, DefaultArrayStyle
+using Base.Broadcast: AbstractArrayStyle, Broadcasted, DefaultArrayStyle, _broadcast_getindex
 
 # combine_sizes moved from StaticArrays after https://github.com/JuliaArrays/StaticArrays.jl/pull/1008
 # see also https://github.com/JuliaArrays/HybridArrays.jl/issues/50
@@ -80,9 +80,33 @@ end
         # destination dimension cannot be determined statically; fall back to generic broadcast!
         return copyto!(dest, convert(Broadcasted{DefaultArrayStyle{M}}, B))
     end
-    StaticArrays._broadcast!(f, destsize, dest, argsizes, as...)
+    _s_broadcast!(f, destsize, dest, argsizes, as...)
 end
 
+broadcast_getindex(::Tuple{}, i::Int, I::CartesianIndex) = return :(_broadcast_getindex(a[$i], $I))
+broadcast_getindex(::Tuple{Dynamic}, i::Int, I::CartesianIndex) = return :(_broadcast_getindex(a[$i], $I))
+function broadcast_getindex(oldsize::Tuple, i::Int, newindex::CartesianIndex)
+    li = LinearIndices(oldsize)
+    ind = _broadcast_getindex(li, newindex)
+    return :(a[$i][$ind])
+end
+
+@generated function _s_broadcast!(f, ::Size{newsize}, dest::AbstractArray, s::Tuple{Vararg{Size}}, a...) where {newsize}
+    sizes = [sz.parameters[1] for sz in s.parameters]
+
+    indices = CartesianIndices(newsize)
+    exprs = similar(indices, Expr)
+    for (j, current_ind) ∈ enumerate(indices)
+        exprs_vals = (broadcast_getindex(sz, i, current_ind) for (i, sz) in enumerate(sizes))
+        exprs[j] = :(dest[$j] = f($(exprs_vals...)))
+    end
+
+    return quote
+        Base.@_inline_meta
+        @inbounds $(Expr(:block, exprs...))
+        return dest
+    end
+end
 
 @generated function _broadcast(f, ::Size{newsize}, s::Tuple{Vararg{Size}}, a...) where newsize
     first_staticarray = 0

@@ -186,6 +186,12 @@ end
         return Tuple{tuple_nodynamic_prod(Size)}
     end
 end
+function new_out_size(::Type{Size}, ::AbstractVector) where Size
+    return Tuple{Dynamic()}
+end
+@generated function new_out_size(::Type{Size}, ::StaticVector{N}) where {Size,N}
+    return Tuple{N}
+end
 
 maybe_unwrap(i) = i
 maybe_unwrap(i::StaticIndexing) = i.ind
