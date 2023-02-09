@@ -165,3 +165,4 @@ include("nonstandard_indices.jl")
 if VERSION >= v"1.2"
     include("array_interface_compat.jl")
 end
+include("forwarddiff.jl")

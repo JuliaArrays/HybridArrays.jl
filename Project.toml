@@ -17,9 +17,10 @@ julia = "1.6"
 [extras]
 ArrayInterface = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 EllipsisNotation = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Static = "aedffcd0-7271-4cad-89d0-dc628f76c6d3"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Random", "ArrayInterface", "EllipsisNotation", "Static"]
+test = ["Test", "Random", "ArrayInterface", "EllipsisNotation", "ForwardDiff", "Static"]
