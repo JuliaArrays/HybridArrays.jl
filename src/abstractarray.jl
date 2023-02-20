@@ -5,15 +5,15 @@ Base.dataids(sa::HybridArray) = Base.dataids(parent(sa))
 
 @inline Base.elsize(sa::HybridArray) = Base.elsize(parent(sa))
 
-@inline size(sa::HybridArray{S,T,N,N}) where {S,T,N} = size(parent(sa))
+@inline size(sa::HybridArray{S,T,N,N}) where {S<:Tuple,T,N} = size(parent(sa))
 
 @inline length(sa::HybridArray) = length(parent(sa))
 
-@inline strides(sa::HybridArray{S,T,N,N}) where {S,T,N} = strides(parent(sa))
+@inline strides(sa::HybridArray{S,T,N,N}) where {S<:Tuple,T,N} = strides(parent(sa))
 
 @inline pointer(sa::HybridArray) = pointer(parent(sa))
 
-@generated function _sized_abstract_array_axes(::Type{S}, ax::Tuple) where S<:Tuple
+@generated function _sized_abstract_array_axes(::Type{S}, ax::Tuple) where {S<:Tuple}
     exprs = Any[]
     map(enumerate(S.parameters)) do (i, si)
         if isa(si, Dynamic)
@@ -25,18 +25,18 @@ Base.dataids(sa::HybridArray) = Base.dataids(parent(sa))
     return Expr(:tuple, exprs...)
 end
 
-function axes(sa::HybridArray{S}) where S
+function axes(sa::HybridArray{S}) where {S<:Tuple}
     ax = axes(parent(sa))
     return _sized_abstract_array_axes(S, ax)
 end
 
 
-function promote_rule(::Type{<:HybridArray{S,T,N,M,TDataA}}, ::Type{<:HybridArray{S,U,N,M,TDataB}}) where {S,T,U,N,M,TDataA,TDataB}
+function promote_rule(::Type{<:HybridArray{S,T,N,M,TDataA}}, ::Type{<:HybridArray{S,U,N,M,TDataB}}) where {S<:Tuple,T,U,N,M,TDataA,TDataB}
     TU = promote_type(T,U)
     HybridArray{S,TU,N,M,promote_type(TDataA, TDataB)::Type{<:AbstractArray{TU}}}
 end
 
-@inline copy(a::HybridArray{S, T, N, M}) where {S, T, N, M} = begin
+@inline copy(a::HybridArray{S, T, N, M}) where {S<:Tuple, T, N, M} = begin
     parentcopy = copy(parent(a))
     HybridArray{S, T, N, M, typeof(parentcopy)}(parentcopy)
 end
