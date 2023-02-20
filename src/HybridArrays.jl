@@ -184,6 +184,9 @@ function __init__()
     @require ArrayInterface="4fba245c-0d91-5ea0-9b3e-6abc04ee57a9" begin
         include("array_interface_compat.jl")
     end
+    @require StaticArrayInterface="0d7ed370-da01-4f52-bd93-41d350b8b718" begin
+        include("static_array_interface_compat.jl")
+    end
 end
 
 end # module
