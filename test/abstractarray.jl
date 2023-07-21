@@ -138,4 +138,12 @@ using StaticArrays: Dynamic
         @test isa(M3, HybridArray{Tuple{Dynamic(),3,4},Int,3,3,Array{Int,3}})
         @test size(M3) === (5, 3, 4)
     end
+
+    @testset "getindex" begin
+        A = HybridArray{Tuple{2,2,StaticArrays.Dynamic()}}(randn(2,2,100))
+        B = A[1:2]
+        @test B isa Vector
+        @test A[1] == B[1]
+        @test A[2] == B[2]
+    end
 end

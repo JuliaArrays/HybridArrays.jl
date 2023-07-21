@@ -69,6 +69,14 @@ similar(::Type{<:HybridArray{S,T,N,M}},::Type{T2}) where {S,T,N,M,T2} = HybridAr
 similar(::Type{SA},::Type{T},s::Size{S}) where {SA<:HybridArray,T,S} = hybridarray_similar_type(T,s,StaticArrays.length_val(s))(undef)
 hybridarray_similar_type(::Type{T},s::Size{S},::Type{Val{D}}) where {T,S,D} = HybridArray{Tuple{S...},T,D,length(s)}
 
+#disambiguation
+function similar(a::HybridArray, t::Type{T2}, i::Tuple{Union{Integer, Base.OneTo}, Vararg{Union{Integer, Base.OneTo}}}) where T2
+    return invoke(similar, Tuple{AbstractArray, Type, Tuple{Union{Integer, Base.OneTo}, Vararg{Union{Integer, Base.OneTo}}}}, a, t, i)
+end
+function similar(a::HybridArray, t::Type{T2}, i::Tuple{Int64, Vararg{Int64}}) where T2
+    return invoke(similar, Tuple{AbstractArray, Type, Tuple{Int64, Vararg{Int64}}}, a, t, i)
+end
+
 # for internal use only (used in vcat and hcat)
 # TODO: try to make this less hacky
 # adding method to similar_type ends up being used in broadcasting for some reason?

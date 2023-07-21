@@ -42,6 +42,10 @@ using Test
         @test isa(vcat(HybridVector{2}([1, 2]), HybridVector{3}([1, 2, 3])), HybridVector{5, Int})
 
         @test_throws DimensionMismatch hcat(HybridVector{2}([1, 2]), HybridVector{3}([1, 2, 3]))
-        @test_throws ArgumentError vcat(m1, hcat(m1, m2))
+        if VERSION < v"1.10"
+            @test_throws ArgumentError vcat(m1, hcat(m1, m2))
+        else
+            @test_throws DimensionMismatch vcat(m1, hcat(m1, m2))
+        end
     end
 end
