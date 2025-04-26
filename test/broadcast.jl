@@ -201,9 +201,9 @@ Broadcast.broadcastable(x::ScalarTest) = Ref(x)
         end
         
         if VERSION >= v"1.11"
-            @test ftest() == 0
+            @test test_broadcast_allocs() == 0
         else
-            @test_broken ftest() == 0
+            @test_broken test_broadcast_allocs() == 0
         end
     end
     
