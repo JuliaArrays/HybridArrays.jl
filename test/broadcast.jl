@@ -191,13 +191,13 @@ Broadcast.broadcastable(x::ScalarTest) = Ref(x)
         @test_throws DimensionMismatch a .= d
     end
 
-    @testset "no allocations during broadcasting " begin
+    @testset "no allocations during broadcasting" begin
         # HybridArrays issue #64
         # Fixed in Julia 1.11
         function test_broadcast_allocs()
             H = HybridArray{Tuple{2,2,StaticArrays.Dynamic()}}(randn(2,2,2))
             H2 = HybridArray{Tuple{2,2,StaticArrays.Dynamic()}}(Array{Float64}(undef, 2, 2, 4))
-            @allocated copyto!(view(H2,:,:,1:2), H)
+            @allocated H2[:,:,1:2] .= H
         end
         
         if VERSION >= v"1.11"
