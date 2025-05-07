@@ -44,6 +44,13 @@ Broadcast.broadcastable(x::ScalarTest) = Ref(x)
         @test @inferred(m ./ (v .* v')) == @SMatrix [1.0 0.5; 0.75 0.25]
         testinf(m, v) = m ./ (v .* v')
         @test @inferred(testinf(m, v)) == @SMatrix [1.0 0.5; 0.75 0.25]
+
+        # mutating
+        m .+= v .+ [1, 2]
+        @test m == [3 4; 9 10]
+        m = HybridMatrix{2,StaticArrays.Dynamic()}([1 2; 3 4])
+        m .+= v .+ SA[1, 2]
+        @test m == [3 4; 9 10]
     end
 
     @testset "2x2 HybridMatrix with 1x2 HybridMatrix" begin
@@ -60,6 +67,10 @@ Broadcast.broadcastable(x::ScalarTest) = Ref(x)
         @test @inferred(m1 .- m2) == @SMatrix [0 -2; 2 0]
         @test @inferred(m2 .- m1) == @SMatrix [0 2; -2 0]
         @test @inferred(m1 .^ m2) == @SMatrix [1 16; 3 256]
+
+        # mutating
+        m1 .+= m2
+        @test m1 == [2 6; 4 8]
     end
 
     @testset "1x2 HybridMatrix with SVector" begin
@@ -113,6 +124,10 @@ Broadcast.broadcastable(x::ScalarTest) = Ref(x)
         @test @inferred(2 .- m) == @SMatrix [1 0; -1 -2]
         @test @inferred(m .^ 2) == @SMatrix [1 4; 9 16]
         @test @inferred(2 .^ m) == @SMatrix [2 4; 8 16]
+
+        # mutating
+        m .+= 2
+        @test m == [3 4; 5 6]
     end
     @testset "Empty arrays" begin
         @test @inferred(1.0 .+ HybridMatrix{2,0,Float64}(zeros(2,0))) == HybridMatrix{2,0,Float64}(zeros(2,0))
